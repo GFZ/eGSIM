@@ -17,7 +17,7 @@ jobs:
 
       # 2. Add source repo as remote
       - name: Add source remote
-        run: git remote add source https://github.com/ORIGINAL_OWNER/ORIGINAL_REPO.git
+        run: git remote add source https://github.com/rizac/eGSIM.git
 
       # 3. Fetch all branches and tags from source
       - name: Fetch source branches and tags
