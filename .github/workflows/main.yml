@@ -1,0 +1,35 @@
+name: Mirror Repository
+
+on:
+  workflow_dispatch:       # manual trigger
+  schedule:
+    - cron: '0 0 */14 * *' # every 14 days at 00:00 UTC
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Checkout your mirror repo (fetch full history)
+      - name: Checkout mirror repo
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      # 2. Add source repo as remote
+      - name: Add source remote
+        run: git remote add source https://github.com/ORIGINAL_OWNER/ORIGINAL_REPO.git
+
+      # 3. Fetch all branches and tags from source
+      - name: Fetch source branches and tags
+        run: git fetch source '+refs/heads/*:refs/remotes/source/*' '+refs/tags/*:refs/tags/*' --prune
+
+      # 4. Push all branches to mirror
+      - name: Push branches
+        run: |
+          for branch in $(git for-each-ref --format='%(refname:short)' refs/remotes/source/); do
+            git push origin refs/remotes/source/$branch:refs/heads/$branch
+          done
+
+      # 5. Push all tags to mirror
+      - name: Push tags
+        run: git push origin --tags
