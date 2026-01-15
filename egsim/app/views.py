@@ -298,7 +298,7 @@ def get_init_data_json(
         'pages': {  # tab key => url path (after the first slash)
             'predictions': URLS.WEBPAGE_PREDICTIONS,
             'residuals': URLS.WEBPAGE_RESIDUALS,
-            'flatfile_meta_info': URLS.WEBPAGE_FLATFILE_COMPILATION_INFO,
+            'flatfile_column_info': URLS.WEBPAGE_FLATFILE_COMPILATION_INFO,
             'flatfile_visualize': URLS.WEBPAGE_FLATFILE_INSPECTION_PLOT,
             'citations_and_license': URLS.WEBPAGE_CITATIONS_AND_LICENSE,
             'imprint': URLS.WEBPAGE_IMPRINT,
@@ -319,7 +319,7 @@ def get_init_data_json(
                 f'{URLS.DOWNLOAD_RESIDUALS_PLOT}.{ext}' for ext in img_ext
             ],
             'residuals_response_tutorial': URLS.RESIDUALS_DOWNLOADED_DATA_TUTORIAL,
-            'flatfile_meta_info': URLS.SUBMIT_FLATFILE_COMPILATION_INFO,
+            'flatfile_column_info': URLS.SUBMIT_FLATFILE_COMPILATION_INFO,
             'flatfile_visualize': URLS.SUBMIT_FLATFILE_VISUALIZATION,
             'flatfile_plot_img': [
                 f'{URLS.DOWNLOAD_FLATFILE_PLOT}.{ext}' for ext in img_ext
@@ -337,7 +337,7 @@ def get_init_data_json(
             # in frontend, the form data below will be merged with forms.residuals above
             # (keys below will take priority):
             'residuals_plot': {'x': None, 'format': 'json'},
-            'flatfile_meta_info': form2dict(
+            'flatfile_column_info': form2dict(
                 FlatfileMetadataInfoForm({'gsim': []})
             ),
             'flatfile_visualize': form2dict(FlatfileVisualizeForm({})),
@@ -361,14 +361,14 @@ def get_init_data_json(
                     'help': form2help(ResidualsForm),
                     'tutorial_page_visible': False
                 },
-                'flatfile_meta_info': {},
+                'flatfile_column_info': {},
                 'download_formats': data_ext
             }
         },
         'responses': {
             'predictions_plots': [],
             'residuals_plots': [],
-            'flatfile_meta_info': None,
+            'flatfile_column_info': None,
             'flatfile_visualize': [],
         },
         'gsims': gsims,

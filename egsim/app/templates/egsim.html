@@ -48,8 +48,8 @@
 	<template v-if="currentPage==pages.predictions">
 	{% include "predictions.html" %}
 	</template>
-	<template v-else-if="currentPage==pages.flatfile_meta_info">
-	{% include "flatfile_meta_info.html" %}
+	<template v-else-if="currentPage==pages.flatfile_column_info">
+	{% include "flatfile_column_info.html" %}
 	</template>
 	<template v-else-if="currentPage==pages.flatfile_visualize">
 	{% include "flatfile_visualize.html" %}
@@ -179,7 +179,9 @@ const EGSIM = Vue.createApp({
 	methods: {
 		setUrlInBrowser(menu){
 			var location = window.location;
-			if (!location.pathname.startsWith(`/${menu}`)){
+			let path = window.location.pathname;
+			// Remove trailing slash if present (but keep root "/")
+			if (!(path == `/${menu}` || path == `/${menu}/`)) {
 				var newHref = `${location.origin}/${menu}`
 				// https://developer.mozilla.org/en-US/docs/Web/API/History_API
 				window.history.replaceState({}, document.title, newHref);

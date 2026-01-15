@@ -54,23 +54,23 @@
 		</div>
 	</div>
 
-	<div v-if="Object.keys(responses.flatfile_meta_info || {}).length"
+	<div v-if="Object.keys(responses.flatfile_column_info || {}).length"
 		 style='flex:1 1 auto;height:100%;overflow:auto' class='d-flex flex-column gap-3 p-3'>
 		<div class='d-flex flex-row align-items-stretch gap-3'>
 			<div style='flex:1 1 auto'>
 				{% verbatim %}
 				<b>Selected
-				{{ forms.flatfile_meta_info.gsim.length == 1 ? 'model' : 'models' }}:
-				{{ forms.flatfile_meta_info.gsim.length }}</b>,
+				{{ forms.flatfile_column_info.gsim.length == 1 ? 'model' : 'models' }}:
+				{{ forms.flatfile_column_info.gsim.length }}</b>,
 				<b>flatfile minimum required fields:
 				{{
-					responses.flatfile_meta_info.columns.filter(c => !c.type.toLowerCase().includes("intensity")).length + 1
+					responses.flatfile_column_info.columns.filter(c => !c.type.toLowerCase().includes("intensity")).length + 1
 				}}
 				</b>
 				(at least one intensity measure
-					and {{ responses.flatfile_meta_info.columns.filter(c => !c.type.toLowerCase().includes("intensity")).length }}
+					and {{ responses.flatfile_column_info.columns.filter(c => !c.type.toLowerCase().includes("intensity")).length }}
 					mandatory input parameter(s):
-					{{ responses.flatfile_meta_info.columns.filter(c => !c.type.toLowerCase().includes("intensity")).map(c => c.name).join(", ") }}).
+					{{ responses.flatfile_column_info.columns.filter(c => !c.type.toLowerCase().includes("intensity")).map(c => c.name).join(", ") }}).
 
 				Any other supplied field will be safely ignored, but try to avoid uploading data
 				unnecessarily. The fields order is irrelevant.
@@ -78,7 +78,7 @@
 			</div>
 			<button type="button" title="Select new models and intensity measures"
 					class="btn btn-outline-primary btn-sm"
-					@click='responses.flatfile_meta_info = {}'>
+					@click='responses.flatfile_column_info = {}'>
 				Change models selection
 			</button>
 		</div>
@@ -94,7 +94,7 @@
 				</thead>
 
 				<tbody>
-					<tr v-for="col in responses.flatfile_meta_info.columns">
+					<tr v-for="col in responses.flatfile_column_info.columns">
 						<td v-html="col.name.startsWith('SA') ? 'SA(&ctdot;)' : col.name" class="text-nowrap"></td>
 						<td v-html="col.type.replaceAll('_', ' ')" class="text-nowrap"></td>
 						<td v-html="col.dtype" style="max-width: 10rem"></td>
@@ -112,8 +112,8 @@
 			according to your models of interest:
 		</div>
 		<div style='flex: 1 1 auto' class='position-relative border-start border-top'>
-			<gsim-map @gsim-selected="(gs) => { forms.flatfile_meta_info.gsim = Array.from(new Set(forms.flatfile_meta_info.gsim.concat(gs))) }"
-					  @gsim-unselected="(gs) => { forms.flatfile_meta_info.gsim = forms.flatfile_meta_info.gsim.filter(g => !gs.includes(g)); }"
+			<gsim-map @gsim-selected="(gs) => { forms.flatfile_column_info.gsim = Array.from(new Set(forms.flatfile_column_info.gsim.concat(gs))) }"
+					  @gsim-unselected="(gs) => { forms.flatfile_column_info.gsim = forms.flatfile_column_info.gsim.filter(g => !gs.includes(g)); }"
 					  :regionalizations="regionalizations"
 					  :region-selected-url="urls.get_gsim_from_region"
 					  style='position:absolute;inset:0px;z-index:0'>
@@ -123,16 +123,16 @@
 				  class='position-absolute d-flex flex-column p-3 gap-3'
 				  style='position: absolute; top: 0px; min-width: min(50vw, 33rem); max-width: 50vw; max-height: 100%; z-index: 1;'>
 
-				<gsim-select v-model="forms.flatfile_meta_info.gsim"
+				<gsim-select v-model="forms.flatfile_column_info.gsim"
 							 :models="models"
-							 :selected-imts="forms.flatfile_meta_info.imt"
+							 :selected-imts="forms.flatfile_column_info.imt"
 							 :model-info-url="urls.get_gsim_info"
 							 style="flex: 0 1 auto; min-height:0px">
 				</gsim-select>
 
 				<button class='btn btn-primary' type='button'
-						:disabled="forms.flatfile_meta_info.gsim.length == 0"
-						@click='post(urls.flatfile_meta_info, forms.flatfile_meta_info).then(r => r.json()).then(data => { responses.flatfile_meta_info = data; });'>
+						:disabled="forms.flatfile_column_info.gsim.length == 0"
+						@click='post(urls.flatfile_column_info, forms.flatfile_column_info).then(r => r.json()).then(data => { responses.flatfile_column_info = data; });'>
 					Get flatfile required fields
 				</button>
 			</form>
