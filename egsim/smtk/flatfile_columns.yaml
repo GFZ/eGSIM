@@ -1,4 +1,4 @@
-# Flatfile metadata registry. Syntax (in YAML format):
+# Flatfile columns registry. Syntax (in YAML format):
 #
 # <column_name>:
 #   dtype:    The data type. Supported values are: null (the default when missing), int,

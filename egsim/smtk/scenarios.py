@@ -17,7 +17,7 @@ from openquake.hazardlib.source.rupture import BaseRupture
 from openquake.hazardlib.source.point import PointSource
 
 from .registry import Clabel
-from .flatfile import FlatfileMetadata
+from .flatfile import Columns
 from .converters import vs30_to_z1pt0_cy14, vs30_to_z2pt5_cb14
 from .validation import (validate_inputs, harmonize_input_gsims, init_context_maker,
                          harmonize_input_imts, validate_imt_sa_limits,
@@ -116,7 +116,7 @@ def get_scenarios_predictions(
         columns.extend((i, Clabel.std, gsim_name) for i in imt_names)
 
     # get interesting fields (only those registered in flatfile):
-    meta_fields = [c for c in ctxts.dtype.names if FlatfileMetadata.has(c)]
+    meta_fields = [c for c in ctxts.dtype.names if Columns.has(c)]
 
     # get the matrix of data (stack the scalar fields into a 2D NumPy array):
     meta_data = np.column_stack([ctxts[name] for name in meta_fields])
@@ -125,7 +125,7 @@ def get_scenarios_predictions(
     data.append(meta_data)
     # build our dataframe columns (append the meta_data columns from meta_columns):
     meta_columns = [
-        (Clabel.input, str(FlatfileMetadata.get_type(m).value), m) for m in meta_fields
+        (Clabel.input, str(Columns.get_type(m).value), m) for m in meta_fields
     ]
     columns.extend(meta_columns)
 

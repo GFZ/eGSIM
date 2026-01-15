@@ -10,7 +10,7 @@ from django.forms.fields import CharField, FileField
 
 from egsim.smtk import (ground_motion_properties_required_by,
                         intensity_measures_defined_for, get_sa_limits)
-from egsim.smtk.flatfile import (read_flatfile, get_dtype_of, FlatfileMetadata,
+from egsim.smtk.flatfile import (read_flatfile, get_dtype_of, Columns, ColumnType,
                                  query as flatfile_query, EVENT_ID_COLUMN_NAME,
                                  FlatfileError, FlatfileQueryError,
                                  IncompatibleColumnError)
@@ -141,8 +141,9 @@ class FlatfileForm(EgsimBaseForm):
 
 
 class FlatfileValidationForm(APIForm, FlatfileForm):
-    """Form for flatfile validation, on success
-    return info from a given uploaded flatfile"""
+    """
+    Form for flatfile validation, on success return info from a given uploaded flatfile
+    """
 
     def output(self) -> Optional[dict]:
         """
@@ -164,12 +165,13 @@ class FlatfileValidationForm(APIForm, FlatfileForm):
 
 
 class FlatfileMetadataInfoForm(GsimForm, APIForm):
-    """Form for querying the necessary metadata columns from a given selection
-    of models"""
+    """
+    Form for querying the necessary metadata columns from a given selection of models
+    """
 
     def clean(self):
         cleaned_data = super().clean()
-        unique_imts = FlatfileMetadata.get_intensity_measures()
+        unique_imts = Columns.get(ColumnType.intensity)
 
         for m_name, model in cleaned_data['gsim'].items():
             imts = intensity_measures_defined_for(model)
@@ -200,7 +202,8 @@ class FlatfileMetadataInfoForm(GsimForm, APIForm):
         return cleaned_data
 
     def output(self) -> dict:
-        """Compute and return the output from the input data (`self.cleaned_data`).
+        """
+        Compute and return the output from the input data (`self.cleaned_data`).
         This method must be called after checking that `self.is_valid()` is True
 
         :return: any Python object (e.g., a JSON-serializable dict)
@@ -210,7 +213,7 @@ class FlatfileMetadataInfoForm(GsimForm, APIForm):
 
         required_columns = (ground_motion_properties_required_by(*gsims) |
                             {EVENT_ID_COLUMN_NAME})  # <- event id always required
-        ff_columns = {FlatfileMetadata.get_aliases(c)[0] for c in required_columns}
+        ff_columns = {Columns.get_aliases(c)[0] for c in required_columns}
 
         imts = cleaned_data['imt']
 
@@ -227,7 +230,8 @@ class FlatfileMetadataInfoForm(GsimForm, APIForm):
 
 
 def get_hr_flatfile_column_meta(name: str, values: Optional[pd.Series] = None) -> dict:
-    """Return human-readable (hr) flatfile column metadata in the following `dict` form:
+    """
+    Return human-readable (hr) flatfile column metadata in the following `dict` form:
     {
         'name': str,
         'help': str,
@@ -244,16 +248,16 @@ def get_hr_flatfile_column_meta(name: str, values: Optional[pd.Series] = None) -
     c_dtype = None
     c_categories = []
 
-    if FlatfileMetadata.has(name):
-        c_dtype = FlatfileMetadata.get_dtype(name)
-        cat_dtype = FlatfileMetadata.get_categorical_dtype(name)
+    if Columns.has(name):
+        c_dtype = Columns.get_dtype(name)
+        cat_dtype = Columns.get_categorical_dtype(name)
         if cat_dtype is not None:
             # c_categories is a pandas CategoricalStype. So:
             c_dtype = get_dtype_of(cat_dtype.categories)
             c_categories = cat_dtype.categories.tolist()
-        c_type = getattr(FlatfileMetadata.get_type(name), 'value', "")
-        c_help = FlatfileMetadata.get_help(name) or ""
-        c_aliases = FlatfileMetadata.get_aliases(name)
+        c_type = getattr(Columns.get_type(name), 'value', "")
+        c_help = Columns.get_help(name) or ""
+        c_aliases = Columns.get_aliases(name)
         if len(c_aliases) > 1:
             c_aliases = [n for n in c_aliases if n != name]
             c_aliases = (f"Alternative valid name{'s' if len(c_aliases) != 1 else ''}: "
@@ -291,7 +295,7 @@ def get_hr_flatfile_column_meta(name: str, values: Optional[pd.Series] = None) -
 
 def sa_hr_help(gsims, sa_help: str, sa_p_limits: list[float]) -> str:
     """
-    builds the SA field help, human readable (hr). The output will be HTML.
+    Build the SA field help, human readable (hr). The output will be HTML.
     `sa_help` should be text in flatfile_metadata for the field 'SA'
     """
     sa_p_min = sa_p_max = sa_p_limits[0]

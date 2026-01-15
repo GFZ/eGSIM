@@ -10,7 +10,7 @@ import tokenize
 from pandas.core.base import IndexOpsMixin
 from pandas.errors import ParserError
 from tables import HDF5ExtError
-from typing import Union, Any
+from typing import Union, Any, Optional
 from enum import Enum
 
 import numpy as np
@@ -184,7 +184,8 @@ def validate_flatfile_dataframe(
         extra_dtypes: dict[str, Union[ColumnDtype, pd.CategoricalDtype]] = None,  # noqa
         extra_defaults: dict[str, Any] = None,
         mixed_dtype_categorical='raise'):
-    """Validate the flatfile dataframe checking data types, conflicting column names,
+    """
+    Validate the flatfile dataframe checking data types, conflicting column names,
     or missing mandatory columns (e.g. IMT related columns). This method raises
     or returns None on success
 
@@ -213,9 +214,9 @@ def validate_flatfile_dataframe(
         if col in extra_dtypes:
             xp_dtype = extra_dtypes[col]
         else:
-            xp_dtype = FlatfileMetadata.get_dtype(col)
+            xp_dtype = Columns.get_dtype(col)
             if xp_dtype == ColumnDtype.category:
-                xp_dtype = FlatfileMetadata.get_categorical_dtype(col)
+                xp_dtype = Columns.get_categorical_dtype(col)
 
         if xp_dtype is None:
             continue
@@ -225,7 +226,7 @@ def validate_flatfile_dataframe(
             if default is not None:
                 default = cast_to_dtype(default, xp_dtype, mixed_dtype_categorical)
         else:
-            default = FlatfileMetadata.get_default(col)
+            default = Columns.get_default(col)
         if default is not None:
             is_na = pd.isna(dfr[col])
             dfr.loc[is_na, col] = default
@@ -244,10 +245,10 @@ def validate_flatfile_dataframe(
     ff_cols = set(dfr.columns)
     has_imt = False
     for c in dfr.columns:
-        aliases = set(FlatfileMetadata.get_aliases(c))
+        aliases = set(Columns.get_aliases(c))
         if len(aliases & ff_cols) > 1:
             raise IncompatibleColumnError(list(aliases & ff_cols))
-        if not has_imt and FlatfileMetadata.get_type(c) == ColumnType.intensity:
+        if not has_imt and Columns.get_type(c) == ColumnType.intensity:
             has_imt = True
 
     if not has_imt:
@@ -468,20 +469,37 @@ class FlatfileQueryError(FlatfileError):
 
 # registered columns:
 
-class FlatfileMetadata:
-    """Container class to access flatfile metadata defined in the associated YAML file
+class Columns:
+    """
+    Registry to access flatfile columns metadata defined in the associated YAML file
     """
 
     @staticmethod
     def has(column: str) -> bool:
-        """Return whether the given argument is a registered flatfile column name
+        """
+        Return whether the given argument is a registered flatfile column name
         (including aliases. 'SA(<period>)' is valid and will default to 'SA')
         """
-        return bool(FlatfileMetadata._props_of(column))
+        return bool(Columns._props_of(column))
+
+    @staticmethod
+    def get(column_type: Optional[ColumnType] = None) -> set[str]:
+        """
+        Return a set of strings with all column names matching the given type. If the
+        argument is missing or None, all registered column names are returned. Aliases
+        are not included, only primary names
+        """
+        if Columns._data is None:
+            Columns._data = _load_flatfile_columns_registry()
+        return {
+            c_name for c_name, c_props in Columns._data.items()
+            if column_type is None or c_props.get('type', None) == column_type
+        }
 
     @staticmethod
     def get_rupture_params() -> set[str]:
-        """Return a set of strings with all column names (including aliases)
+        """
+        Return a set of strings with all column names (including aliases)
         denoting a rupture parameter
         """
         return {
@@ -491,7 +509,8 @@ class FlatfileMetadata:
 
     @staticmethod
     def get_intensity_measures() -> set[str]:
-        """Return a set of strings with all column names denoting an intensity
+        """
+        Return a set of strings with all column names denoting an intensity
         measure name, with no arguments, e.g., "PGA", "SA" (note: not "SA(...)").
         """
         return {c_name for c_name, c_props in _load_flatfile_metadata().items()
@@ -499,66 +518,76 @@ class FlatfileMetadata:
 
     @staticmethod
     def get_type(column: str) -> Union[ColumnType, None]:
-        """Return the `ColumnType` enum item of the given column, or None.
+        """
+        Return the `ColumnType` enum item of the given column, or None.
         if `column` is 'SA(<period>)', it will default to 'SA'
         """
-        return FlatfileMetadata._props_of(column).get('type', None)
+        return Columns._props_of(column).get('type', None)
 
     @staticmethod
     def get_default(column: str) -> Union[None, Any]:
-        """Return the default of the given column name (used to fill missing data), or
+        """
+        Return the default of the given column name (used to fill missing data), or
         None if no default is set. if `column` is 'SA(<period>)', it will default to 'SA'
         """
-        return FlatfileMetadata._props_of(column).get('default', None)
+        return Columns._props_of(column).get('default', None)
 
     @staticmethod
     def get_aliases(column: str) -> tuple[str]:
-        """Return all possible names of the given column, as tuple set of strings
+        """
+        Return all possible names of the given column, as tuple set of strings
         where the first element is assured to be the flatfile default column name
         (primary name) and all remaining the secondary names. The tuple will be composed
         of `column` alone if `column` does not have registered aliases.
         if `column` is 'SA(<period>)', it will default to 'SA'
         """
-        return FlatfileMetadata._props_of(column).get('alias', (column,))
+        return Columns._props_of(column).get('alias', (column,))
 
     @staticmethod
     def get_help(column: str) -> str:
-        """Return the help (description) of the given column name, or ''.
+        """
+        Return the help (description) of the given column name, or ''.
         If `column` is 'SA(<period>)', it will default to 'SA'
         """
-        return FlatfileMetadata._props_of(column).get('help', "")
+        return Columns._props_of(column).get('help', "")
 
     @staticmethod
     def get_dtype(column: str) -> Union[ColumnDtype, None]:
-        """Return the data type of the given column name, as `ColumnDtype` Enum item,
+        """
+        Return the data type of the given column name, as `ColumnDtype` Enum item,
         or None if the column has no known data type. If the return value is
         `ColumnDtype.category`, get more info via `get_categorical_dtype(column)`.
         If `column` is 'SA(<period>)', it will default to 'SA'
         """
-        dtype = FlatfileMetadata._get_dtype(column)
+        dtype = Columns._get_dtype(column)
         if isinstance(dtype, pd.CategoricalDtype):
             return ColumnDtype.category
         return dtype
 
     @staticmethod
     def get_categorical_dtype(column: str) -> Union[pd.CategoricalDtype, None]:
-        """Return the pandas CategoricalDtype, a data type for categorical data, for
+        """
+        Return the pandas CategoricalDtype, a data type for categorical data, for
         the given column. To get the possible categories, use the `.categories` attribute
         of the returned object. Return None if the column data type is not categorical.
         If `column` is 'SA(<period>)', it will default to 'SA'
         """
-        dtype = FlatfileMetadata._get_dtype(column)
+        dtype = Columns._get_dtype(column)
         if isinstance(dtype, pd.CategoricalDtype):
             return dtype
         return None
 
     @staticmethod
     def _get_dtype(column: str) -> Union[pd.CategoricalDtype, ColumnDtype, None]:
-        return FlatfileMetadata._props_of(column).get('dtype', None)
+        return Columns._props_of(column).get('dtype', None)
+
+    _data: Optional[dict] = None  # will be lazy loaded from file (see below)
 
     @staticmethod
     def _props_of(column: str) -> dict:
-        _meta = _load_flatfile_metadata()
+        if Columns._data is None:
+            Columns._data = _load_flatfile_columns_registry()
+        _meta = Columns._data
         props = _meta.get(column, None)
         if props is None and sa_period(column) is not None:
             props = _meta.get('SA', None)
@@ -568,30 +597,18 @@ class FlatfileMetadata:
 # registered columns IO method:
 
 # YAML file path:
-_flatfile_metadata_path = join(dirname(__file__), 'flatfile_metadata.yaml')
-# cache storage of the data in the YAML:
-_flatfile_metadata: dict[str, dict[str, Any]] = None  # noqa
+_flatfile_columns_path = join(dirname(__file__), 'flatfile_columns.yaml')
 
 
-def _load_flatfile_metadata(cache=True) -> dict[str, dict[str, Any]]:
-    """Load the flatfile metadata from the associated YAML file into a Python dict
-
-    :param cache: if True, a cache version will be returned (faster, but remember
-        that any change to the cached version will persist permanently!). Otherwise,
-        a new dict loaded from file (slower) will be returned
-    """
-    global _flatfile_metadata
-    if cache and _flatfile_metadata:
-        return _flatfile_metadata
+def _load_flatfile_columns_registry() -> dict[str, dict[str, Any]]:
+    """Load the columns registry from the associated YAML file into a Python dict"""
     _cols = {}
-    with open(_flatfile_metadata_path) as fpt:
+    with open(_flatfile_columns_path) as fpt:
         for col_name, props in yaml_load(fpt, SafeLoader).items():
             props = _harmonize_col_props(col_name, props)
             # add all aliases mapped to the relative properties:
             for c_name in props['alias']:
                 _cols[c_name] = props
-    if cache:
-        _flatfile_metadata = _cols
     return _cols
 
 
@@ -622,7 +639,8 @@ def _harmonize_col_props(name: str, props: dict):
 
 def query(flatfile: pd.DataFrame, query_expression: str, raise_no_rows=True) \
         -> pd.DataFrame:
-    """Call `flatfile.query` with some utilities:
+    """
+    Call `flatfile.query` with some utilities:
      - ISO-861 strings (e.g. "2006-01-31") will be converted to datetime objects
      - booleans can be also lower case (true or false)
      - Some series methods can be called with the dot notation [col].[method]:
@@ -646,7 +664,8 @@ def query(flatfile: pd.DataFrame, query_expression: str, raise_no_rows=True) \
 
 
 def prepare_expr(expr: str, columns: list[str]) -> dict:
-    """Prepare the given selection expression to add a layer of protection
+    """
+    Prepare the given selection expression to add a layer of protection
     to potentially dangerous untrusted input. Returns a dict to be used as
     `resolvers` argument in `pd.Dataframe.query`
     """
@@ -747,34 +766,3 @@ def valid_expr_sequence(tok_num1: int, tok_val1: str, tok_num2: int, tok_val2: s
         return tok_val1 in {'==', '!=', '<', '<=', '>', '>=', '('}
     else:
         return False
-
-
-def get_flatfile_info(flatfile: pd.DataFrame) -> str:
-    """Get flatfile info as str. The argument should have been read with
-    `read_flatfile` (i.e., no well formation is checked here)"""
-    cols = {}
-    sa_periods = [np.inf, -np.inf]
-    unknowns = set()
-    for c in flatfile.columns:
-        f_type = FlatfileMetadata.get_type()
-        if f_type is None:
-            unknowns.add(c)
-            continue
-        if f_type == ColumnType.intensity and c.startswith('SA'):
-            p = sa_period(c)
-            sa_periods = [min(sa_periods[0], p), max(sa_periods[1], p)]
-            c = 'SA'
-        cols.setdefault(f_type.value, set()).add(c)
-
-    ret = ['=== Flatfile columns ===']
-    if unknowns:
-        ret.append([f'User-defined ({len(unknowns)}): {sorted(unknowns)}'])
-    for c, v in sorted(cols):
-        v = sorted(cols[c])
-        if len(c) > 10:
-            v = v[:9] + ['...']
-        ret.append([f'{c.value.title()} ({len(v)}): {", ".join(v)}'])
-    if sa_periods != [np.inf, -np.inf]:
-        ret.append([f'Sa periods (min, max): {sa_periods}'])
-
-    return "\n\n".join(ret)

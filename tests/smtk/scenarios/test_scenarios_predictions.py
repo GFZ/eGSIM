@@ -14,9 +14,8 @@ from openquake.hazardlib.gsim.bindi_2017 import BindiEtAl2017Rjb
 from scipy.interpolate import interp1d
 
 from egsim.smtk.registry import Clabel
-from egsim.smtk.flatfile import ColumnType, FlatfileMetadata
+from egsim.smtk.flatfile import ColumnType, Columns
 from egsim.smtk import scenarios
-from egsim.smtk.validation import ModelError
 
 BASE_DATA_PATH = os.path.join(os.path.dirname(__file__), "data")
 
@@ -308,9 +307,8 @@ def open_ref_hdf(file_name) -> pd.DataFrame:
         else:
             try:
                 c_mapping[c] = (
-                    Clabel.input,
-                    str(FlatfileMetadata.get_type(c[0]).value),
-                    c[0])
+                    Clabel.input, str(Columns.get_type(c[0]).value), c[0]
+                )
             except Exception as exc:
                 raise ValueError(f'`ref` dataframe: unmapped column {c}. {exc}')
     # set new columns (create new dataframe, as rename does not work with
