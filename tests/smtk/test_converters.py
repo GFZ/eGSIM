@@ -61,7 +61,7 @@ def test_dataframe2dict_orient_dict():
         assert v[1] == 3
         assert v[2] is None if as_json else -np.inf
 
-        v = list(res['Sa(0.1) llh'].values())
+        v = list(res['Sa(0.1) llh'].values())  # noqa
         assert v[0] == 1
         assert v[1] is None if as_json else np.inf
         assert v[2] == 5.37

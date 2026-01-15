@@ -8,7 +8,7 @@ from typing import Optional, Union
 from collections.abc import Iterable, Iterator
 
 from egsim.smtk.converters import array2json, datetime2str
-from egsim.smtk.flatfile import ColumnDtype, get_dtype_of
+from egsim.smtk.flatfile import Column, get_dtype_of
 
 
 class AxisType:
@@ -25,11 +25,11 @@ class AxisType:
 def axis_type(values: Optional[Union[np.ndarray, pd.Series]]) -> str:
     """Return the Plotly axis type (str) to display the given values. See `AxisType`"""
     dtype = get_dtype_of(values)
-    if dtype in (ColumnDtype.int, ColumnDtype.float):
+    if dtype in (Column.Dtype.INT, Column.Dtype.FLOAT):
         return AxisType.linear
-    elif dtype in (ColumnDtype.bool, ColumnDtype.category, ColumnDtype.str):
+    elif dtype in (Column.Dtype.BOOL, Column.Dtype.CATEGORY, Column.Dtype.STR):
         return AxisType.category
-    elif dtype == ColumnDtype.datetime:
+    elif dtype == Column.Dtype.DATETIME:
         return AxisType.date
     return AxisType.infer
 

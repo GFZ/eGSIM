@@ -113,14 +113,14 @@ def read_flatfile(
                     raise ValueError(f'{c}: categories must be of the same type')
             else:
                 try:
-                    v = ColumnDtype[v]
+                    v = Column.Dtype[v]
                 except KeyError:
                     raise ValueError(f'{c}: invalid dtype {v}')
             dtypes[c] = v
             # ignore bool int and date-times, we will parse them later
-            if v in (ColumnDtype.bool, ColumnDtype.int, ColumnDtype.datetime):
+            if v in (Column.Dtype.BOOL, Column.Dtype.INT, Column.Dtype.DATETIME):
                 continue
-            kwargs['dtype'][c] = v.name if isinstance(v, ColumnDtype) else v  # noqa
+            kwargs['dtype'][c] = v.name if isinstance(v, Column.Dtype) else v  # noqa
 
         try:
             dfr = pd.read_csv(filepath_or_buffer, **kwargs)
@@ -181,7 +181,7 @@ def _read_csv_get_header(filepath_or_buffer: IOBase, sep=None, **kwargs) -> list
 
 def validate_flatfile_dataframe(
         dfr: pd.DataFrame,
-        extra_dtypes: dict[str, Union[ColumnDtype, pd.CategoricalDtype]] = None,  # noqa
+        extra_dtypes: dict[str, Union[Column.Dtype, pd.CategoricalDtype]] = None,  # noqa
         extra_defaults: dict[str, Any] = None,
         mixed_dtype_categorical='raise'):
     """
@@ -214,9 +214,9 @@ def validate_flatfile_dataframe(
         if col in extra_dtypes:
             xp_dtype = extra_dtypes[col]
         else:
-            xp_dtype = Columns.get_dtype(col)
-            if xp_dtype == ColumnDtype.category:
-                xp_dtype = Columns.get_categorical_dtype(col)
+            xp_dtype = Column.get_dtype(col)
+            if xp_dtype == Column.Dtype.CATEGORY:
+                xp_dtype = Column.get_categorical_dtype(col)
 
         if xp_dtype is None:
             continue
@@ -226,7 +226,7 @@ def validate_flatfile_dataframe(
             if default is not None:
                 default = cast_to_dtype(default, xp_dtype, mixed_dtype_categorical)
         else:
-            default = Columns.get_default(col)
+            default = Column.get_default(col)
         if default is not None:
             is_na = pd.isna(dfr[col])
             dfr.loc[is_na, col] = default
@@ -245,10 +245,10 @@ def validate_flatfile_dataframe(
     ff_cols = set(dfr.columns)
     has_imt = False
     for c in dfr.columns:
-        aliases = set(Columns.get_aliases(c))
+        aliases = set(Column.get_aliases(c))
         if len(aliases & ff_cols) > 1:
             raise IncompatibleColumnError(list(aliases & ff_cols))
-        if not has_imt and Columns.get_type(c) == ColumnType.intensity:
+        if not has_imt and Column.get_type(c) == Column.Type.INTENSITY:
             has_imt = True
 
     if not has_imt:
@@ -262,7 +262,7 @@ def optimize_flatfile_dataframe(dfr: pd.DataFrame):
     categorical (if the conversion saves memory)
     """
     for c in dfr.columns:
-        if get_dtype_of(dfr[c]) == ColumnDtype.str:
+        if get_dtype_of(dfr[c]) == Column.Dtype.STR:
             cat_dtype = dfr[c].astype('category')
             if cat_dtype.memory_usage(deep=True) < dfr[c].memory_usage(deep=True):
                 dfr[c] = cat_dtype
@@ -270,28 +270,10 @@ def optimize_flatfile_dataframe(dfr: pd.DataFrame):
 
 # Flatfile columns utilities:
 
-class ColumnType(Enum):
-    """Flatfile column type"""
-    rupture = 'rupture_parameter'
-    site = 'site_parameter'
-    distance = 'distance_measure'
-    intensity = 'intensity_measure'
-
-
-class ColumnDtype(Enum):
-    """Enum where members are registered dtype names"""
-    # for ref `numpy.sctypeDict.keys()` lists the possible numpy values
-    float = "numeric float"
-    int = "numeric integer"
-    bool = "boolean"
-    datetime = "ISO formatted date-time"
-    str = "string of text"
-    category = "categorical"
-
 
 def get_dtype_of(
         obj: Union[IndexOpsMixin, np.dtype, str, float, int, datetime, bool]
-) -> Union[ColumnDtype, None]:
+) -> Union[Column.Dtype, None]:
     """
     Get the dtype of the given pandas array, dtype or Python scalar. If
     `ColumnDtype.category` is returned, then `obj.dtype` is assured to be
@@ -316,22 +298,22 @@ def get_dtype_of(
         # pd.Series([True, False]).astype('category') ends being here, but
         # we should return categorical dtype (this happens only with booleans):
         if isinstance(getattr(obj, 'dtype', None), pd.CategoricalDtype):
-            return ColumnDtype.category
-        return ColumnDtype.bool
+            return Column.Dtype.CATEGORY
+        return Column.Dtype.BOOL
     if pd.api.types.is_integer_dtype(obj) or isinstance(obj, int):
-        return ColumnDtype.int
+        return Column.Dtype.INT
     if pd.api.types.is_float_dtype(obj) or isinstance(obj, float):
-        return ColumnDtype.float
+        return Column.Dtype.FLOAT
     if pd.api.types.is_datetime64_any_dtype(obj) or isinstance(obj, datetime):
-        return ColumnDtype.datetime
+        return Column.Dtype.DATETIME
     if isinstance(obj, pd.CategoricalDtype):
-        return ColumnDtype.category
+        return Column.Dtype.CATEGORY
     if isinstance(getattr(obj, 'dtype', None), pd.CategoricalDtype):
         if get_dtype_of(obj.dtype.categories) is None:  # noqa
             return None  # mixed categories , return no dtype
-        return ColumnDtype.category
+        return Column.Dtype.CATEGORY
     if pd.api.types.is_string_dtype(obj) or isinstance(obj, str):
-        return ColumnDtype.str
+        return Column.Dtype.STR
 
     # Final check for data with str and Nones, whose dtype (np.dtype('O')) equals the
     # dtype of only-string Series, but for which `pd.api.types.is_string_dtype` is False:
@@ -344,14 +326,14 @@ def get_dtype_of(
                 continue
             if not pd.api.types.is_string_dtype(item):
                 return None
-            obj_dtype = ColumnDtype.str
+            obj_dtype = Column.Dtype.STR
 
     return obj_dtype
 
 
 def cast_to_dtype(
         value: Any,
-        dtype: Union[ColumnDtype, pd.CategoricalDtype],
+        dtype: Union[Column.Dtype, pd.CategoricalDtype],
         mixed_dtype_categorical='raise'
 ) -> Any:
     """Cast the given value to the given dtype, raise ValueError if unsuccessful
@@ -392,24 +374,24 @@ def cast_to_dtype(
         values = value
 
     if dtype != actual_base_dtype:
-        if dtype == ColumnDtype.float:
+        if dtype == Column.Dtype.FLOAT:
             values = values.astype(float)
-        elif dtype == ColumnDtype.int:
+        elif dtype == Column.Dtype.INT:
             values = values.astype(int)
-        elif dtype == ColumnDtype.bool:
+        elif dtype == Column.Dtype.BOOL:
             # bool is too relaxed, e.g. [3, 'x'].astype(bool) works but it shouldn't
             values = values.astype(int)
             if set(pd.unique(values)) - {0, 1}:
                 raise ValueError('not a boolean')
             values = values.astype(bool)
-        elif dtype == ColumnDtype.datetime:
+        elif dtype == Column.Dtype.DATETIME:
             try:
                 values = pd.to_datetime(values)
             except (ParserError, ValueError) as exc:
                 raise ValueError(str(exc))
-        elif dtype == ColumnDtype.str:
+        elif dtype == Column.Dtype.STR:
             values = values.astype(str)
-        elif dtype == ColumnDtype.category:
+        elif dtype == Column.Dtype.CATEGORY:
             values_ = values.astype('category')
             mixed_dtype = get_dtype_of(values_.cat.categories) is None
             if mixed_dtype and mixed_dtype_categorical == 'raise':
@@ -469,10 +451,27 @@ class FlatfileQueryError(FlatfileError):
 
 # registered columns:
 
-class Columns:
+class Column:
     """
     Registry to access flatfile columns metadata defined in the associated YAML file
     """
+
+    class Type(Enum):
+        """Flatfile column types"""
+        RUPTURE = 'rupture_parameter'
+        SITE = 'site_parameter'
+        DISTANCE = 'distance_measure'
+        INTENSITY = 'intensity_measure'
+
+    class Dtype(Enum):
+        """Enum where members are registered dtype names"""
+        # for ref `numpy.sctypeDict.keys()` lists the possible numpy values
+        FLOAT = "numeric float"
+        INT = "numeric integer"
+        BOOL = "boolean"
+        DATETIME = "ISO formatted date-time"
+        STR = "string of text"
+        CATEGORY = "categorical"
 
     @staticmethod
     def has(column: str) -> bool:
@@ -480,49 +479,29 @@ class Columns:
         Return whether the given argument is a registered flatfile column name
         (including aliases. 'SA(<period>)' is valid and will default to 'SA')
         """
-        return bool(Columns._props_of(column))
+        return bool(Column._props_of(column))
 
     @staticmethod
-    def get(column_type: Optional[ColumnType] = None) -> set[str]:
+    def get(column_type: Optional[Column.Type] = None) -> set[str]:
         """
         Return a set of strings with all column names matching the given type. If the
         argument is missing or None, all registered column names are returned. Aliases
         are not included, only primary names
         """
-        if Columns._data is None:
-            Columns._data = _load_flatfile_columns_registry()
+        if Column._data is None:
+            Column._data = _load_flatfile_columns_registry()
         return {
-            c_name for c_name, c_props in Columns._data.items()
+            c_name for c_name, c_props in Column._data.items()
             if column_type is None or c_props.get('type', None) == column_type
         }
 
     @staticmethod
-    def get_rupture_params() -> set[str]:
+    def get_type(column: str) -> Union[Column.Type, None]:
         """
-        Return a set of strings with all column names (including aliases)
-        denoting a rupture parameter
-        """
-        return {
-            c_name for c_name, c_props in _load_flatfile_metadata().items()
-            if c_props.get('type', None) == ColumnType.rupture
-        }
-
-    @staticmethod
-    def get_intensity_measures() -> set[str]:
-        """
-        Return a set of strings with all column names denoting an intensity
-        measure name, with no arguments, e.g., "PGA", "SA" (note: not "SA(...)").
-        """
-        return {c_name for c_name, c_props in _load_flatfile_metadata().items()
-                if c_props.get('type', None) == ColumnType.intensity}
-
-    @staticmethod
-    def get_type(column: str) -> Union[ColumnType, None]:
-        """
-        Return the `ColumnType` enum item of the given column, or None.
+        Return the `Column.Type` enum item of the given column, or None.
         if `column` is 'SA(<period>)', it will default to 'SA'
         """
-        return Columns._props_of(column).get('type', None)
+        return Column._props_of(column).get('type', None)
 
     @staticmethod
     def get_default(column: str) -> Union[None, Any]:
@@ -530,7 +509,7 @@ class Columns:
         Return the default of the given column name (used to fill missing data), or
         None if no default is set. if `column` is 'SA(<period>)', it will default to 'SA'
         """
-        return Columns._props_of(column).get('default', None)
+        return Column._props_of(column).get('default', None)
 
     @staticmethod
     def get_aliases(column: str) -> tuple[str]:
@@ -541,7 +520,7 @@ class Columns:
         of `column` alone if `column` does not have registered aliases.
         if `column` is 'SA(<period>)', it will default to 'SA'
         """
-        return Columns._props_of(column).get('alias', (column,))
+        return Column._props_of(column).get('alias', (column,))
 
     @staticmethod
     def get_help(column: str) -> str:
@@ -549,19 +528,19 @@ class Columns:
         Return the help (description) of the given column name, or ''.
         If `column` is 'SA(<period>)', it will default to 'SA'
         """
-        return Columns._props_of(column).get('help', "")
+        return Column._props_of(column).get('help', "")
 
     @staticmethod
-    def get_dtype(column: str) -> Union[ColumnDtype, None]:
+    def get_dtype(column: str) -> Union[Column.Dtype, None]:
         """
-        Return the data type of the given column name, as `ColumnDtype` Enum item,
+        Return the data type of the given column name, as `Column.Dtype` Enum item,
         or None if the column has no known data type. If the return value is
-        `ColumnDtype.category`, get more info via `get_categorical_dtype(column)`.
+        `Column.Dtype.CATEGORY`, get more info via `get_categorical_dtype(column)`.
         If `column` is 'SA(<period>)', it will default to 'SA'
         """
-        dtype = Columns._get_dtype(column)
+        dtype = Column._get_dtype(column)
         if isinstance(dtype, pd.CategoricalDtype):
-            return ColumnDtype.category
+            return Column.Dtype.CATEGORY
         return dtype
 
     @staticmethod
@@ -572,22 +551,22 @@ class Columns:
         of the returned object. Return None if the column data type is not categorical.
         If `column` is 'SA(<period>)', it will default to 'SA'
         """
-        dtype = Columns._get_dtype(column)
+        dtype = Column._get_dtype(column)
         if isinstance(dtype, pd.CategoricalDtype):
             return dtype
         return None
 
     @staticmethod
-    def _get_dtype(column: str) -> Union[pd.CategoricalDtype, ColumnDtype, None]:
-        return Columns._props_of(column).get('dtype', None)
+    def _get_dtype(column: str) -> Union[pd.CategoricalDtype, Column.Dtype, None]:
+        return Column._props_of(column).get('dtype', None)
 
     _data: Optional[dict] = None  # will be lazy loaded from file (see below)
 
     @staticmethod
     def _props_of(column: str) -> dict:
-        if Columns._data is None:
-            Columns._data = _load_flatfile_columns_registry()
-        _meta = Columns._data
+        if Column._data is None:
+            Column._data = _load_flatfile_columns_registry()
+        _meta = Column._data
         props = _meta.get(column, None)
         if props is None and sa_period(column) is not None:
             props = _meta.get('SA', None)
@@ -619,11 +598,11 @@ def _harmonize_col_props(name: str, props: dict):
         aliases = [aliases]
     props['alias'] = (name,) + tuple(aliases)
     if 'type' in props:
-        props['type'] = ColumnType[props['type']]
-    dtype: Union[None, ColumnDtype, pd.CategoricalDtype] = None
+        props['type'] = Column.Type[props['type'].upper()]
+    dtype: Union[None, Column.Dtype, pd.CategoricalDtype] = None
     if 'dtype' in props:
         if isinstance(props['dtype'], str):
-            props['dtype'] = dtype = ColumnDtype[props['dtype']]
+            props['dtype'] = dtype = Column.Dtype[props['dtype'].upper()]
         else:
             props['dtype'] = dtype = pd.CategoricalDtype(props['dtype'])
     if 'default' in props:

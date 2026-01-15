@@ -11,10 +11,11 @@ import pytest
 from datetime import datetime
 
 from egsim.smtk import residuals
-from egsim.smtk.flatfile import read_flatfile, ColumnType
+from egsim.smtk.flatfile import read_flatfile
 from scipy.constants import g
 from egsim.smtk.registry import Clabel
-from egsim.smtk.validation import ModelError
+from egsim.smtk.flatfile import Column
+
 
 # load flatfile once:
 BASE_DATA_PATH = os.path.join(os.path.dirname(__file__), "data")
@@ -41,7 +42,8 @@ label_mapping_res = {
 
 
 def get_residuals(gsims, imts, flatfile, likelihood=False):
-    """Run get_residuals with both multi- and single- header option, assuring that the
+    """
+    Run get_residuals with both multi- and single- header option, assuring that the
     two dataframes are equal. Return the multi-header dataframe because tests here
     rely on that
     """
@@ -57,7 +59,8 @@ def get_residuals(gsims, imts, flatfile, likelihood=False):
 
 
 def test_residuals_error():
-    """GhofraniAtkinson2014CascadiaUpper requires a backarc attribute not present
+    """
+    GhofraniAtkinson2014CascadiaUpper requires a backarc attribute not present
     in a flatfile. Test that we correctly replace it with boolean false
     (this was not happening in previous eGSIM version due to DataFrame index != Series
     index. For details see https://stackoverflow.com/a/29706954)
@@ -117,7 +120,7 @@ def test_residuals_execution():
             # (otherwise it's an Inter event residuals per-site e.g. Chiou
             # & Youngs (2008; 2014) case)
             _computed = []
-            key = (Clabel.input, ColumnType.rupture.value, 'event_id')
+            key = (Clabel.input, Column.Type.RUPTURE.value, 'event_id')
             for ev_id, dfr in res_df.groupby([key], observed=False):
                 vals = dfr[lbl].values
                 if ((vals - vals[0]) < 1.0E-12).all():
@@ -175,7 +178,7 @@ def test_residuals_execution_lh():
             # (otherwise it's an Inter event residuals per-site e.g. Chiou
             # & Youngs (2008; 2014) case)
             _computed = []
-            key = (Clabel.input, ColumnType.rupture.value, 'event_id')
+            key = (Clabel.input, Column.Type.RUPTURE.value, 'event_id')
             for ev_id, dfr in res_df.groupby([key], observed=False):
                 vals = dfr[lbl].values
                 if ((vals - vals[0]) < 1.0E-12).all():

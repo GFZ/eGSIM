@@ -13,7 +13,7 @@ from django.forms.fields import Field, FloatField
 
 from egsim.api import models
 from egsim.smtk import (validate_inputs, harmonize_input_gsims, harmonize_input_imts)
-from egsim.smtk.flatfile import Columns
+from egsim.smtk.flatfile import Column
 from egsim.smtk.registry import gsim_info
 from egsim.smtk.validation import IncompatibleModelImtError, ImtError, ModelError
 
@@ -452,7 +452,7 @@ class GsimInfoForm(GsimForm, APIForm):
         for gmm_name, gmm in self.cleaned_data['gsim'].items():
             doc, imts, gm_props, sa_limits = gsim_info(gmm)
             # ground motion properties:
-            gm_props = {p: Columns.get_help(p) for p in gm_props}
+            gm_props = {p: Column.get_help(p) for p in gm_props}
             # remove unnecessary flatfile-related info (everything after 1st paragraph)
             # and also jsonify the string (replace " with ''):
             gm_props = {

@@ -10,7 +10,7 @@ from django.forms.fields import CharField, FileField
 
 from egsim.smtk import (ground_motion_properties_required_by,
                         intensity_measures_defined_for, get_sa_limits)
-from egsim.smtk.flatfile import (read_flatfile, get_dtype_of, Columns, ColumnType,
+from egsim.smtk.flatfile import (read_flatfile, get_dtype_of, Column,
                                  query as flatfile_query, EVENT_ID_COLUMN_NAME,
                                  FlatfileError, FlatfileQueryError,
                                  IncompatibleColumnError)
@@ -171,7 +171,7 @@ class FlatfileMetadataInfoForm(GsimForm, APIForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        unique_imts = Columns.get(ColumnType.intensity)
+        unique_imts = Column.get(Column.Type.INTENSITY)
 
         for m_name, model in cleaned_data['gsim'].items():
             imts = intensity_measures_defined_for(model)
@@ -213,7 +213,7 @@ class FlatfileMetadataInfoForm(GsimForm, APIForm):
 
         required_columns = (ground_motion_properties_required_by(*gsims) |
                             {EVENT_ID_COLUMN_NAME})  # <- event id always required
-        ff_columns = {Columns.get_aliases(c)[0] for c in required_columns}
+        ff_columns = {Column.get_aliases(c)[0] for c in required_columns}
 
         imts = cleaned_data['imt']
 
@@ -248,16 +248,16 @@ def get_hr_flatfile_column_meta(name: str, values: Optional[pd.Series] = None) -
     c_dtype = None
     c_categories = []
 
-    if Columns.has(name):
-        c_dtype = Columns.get_dtype(name)
-        cat_dtype = Columns.get_categorical_dtype(name)
+    if Column.has(name):
+        c_dtype = Column.get_dtype(name)
+        cat_dtype = Column.get_categorical_dtype(name)
         if cat_dtype is not None:
             # c_categories is a pandas CategoricalStype. So:
             c_dtype = get_dtype_of(cat_dtype.categories)
             c_categories = cat_dtype.categories.tolist()
-        c_type = getattr(Columns.get_type(name), 'value', "")
-        c_help = Columns.get_help(name) or ""
-        c_aliases = Columns.get_aliases(name)
+        c_type = getattr(Column.get_type(name), 'value', "")
+        c_help = Column.get_help(name) or ""
+        c_aliases = Column.get_aliases(name)
         if len(c_aliases) > 1:
             c_aliases = [n for n in c_aliases if n != name]
             c_aliases = (f"Alternative valid name{'s' if len(c_aliases) != 1 else ''}: "

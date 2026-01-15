@@ -10,8 +10,8 @@ import numpy as np
 import pandas as pd
 from scipy.stats import norm
 
-from .flatfile import ColumnType
 from .registry import Clabel
+from .flatfile import Column
 
 
 def get_measures_of_fit(
@@ -199,7 +199,7 @@ def _get_edr_gsim_information(
     for imt in imts:
         col = (imt, Clabel.total_res, gsim)
         _stddev = residuals.get(col)
-        col = (Clabel.input, ColumnType.intensity.value, imt)
+        col = (Clabel.input, Column.Type.INTENSITY.value, imt)
         _obs = np.log(residuals.get(col))
         col = (imt, Clabel.mean, gsim)
         _expected = residuals.get(col)

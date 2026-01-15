@@ -17,7 +17,7 @@ from egsim.api.forms import (GsimImtForm, EgsimBaseForm, split_pars, GsimForm)
 from egsim.api.forms.flatfile import FlatfileForm, FlatfileValidationForm, sa_hr_help
 from egsim.api.forms.scenarios import PredictionsForm
 from egsim.smtk import read_flatfile
-from egsim.smtk.flatfile import Columns
+from egsim.smtk.flatfile import Column
 from egsim.smtk.scenarios import RuptureProperties, SiteProperties
 
 GSIM, IMT = 'gsim', 'imt'
@@ -567,7 +567,7 @@ def test_sa_flatfile_field_help():
         ]
     ]
 
-    text = Columns.get_help('SA')
+    text = Column.get_help('SA')
     assert text == " ".join(base_sa_help_text)
 
     for expected_text, args in zip(expected_outputs, [

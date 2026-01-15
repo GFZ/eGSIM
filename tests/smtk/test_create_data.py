@@ -8,11 +8,12 @@ OpenQuake upgrade, you might need to regenerate them. Ij case of eGSIM upgrade
 save them again
 """
 
-from os.path import dirname, abspath, join, isdir, isfile
+from os.path import dirname, abspath, join, isdir
 import pandas as pd
 from egsim.smtk import get_scenarios_predictions, get_residuals, read_flatfile
-from egsim.smtk.flatfile import ColumnType
 from egsim.smtk.registry import Clabel
+from egsim.smtk.flatfile import Column
+
 
 test_data_dir = join(dirname(dirname(abspath(__file__))), 'data')
 
@@ -62,9 +63,6 @@ def test_create_residuals_is_consistent_with_preexecuted_output():
     assert not dfr.loc[:, ('SA(0.032)', slice(None), slice(None))].empty
     assert not dfr.loc[:, ('SA(0.034)', slice(None), slice(None))].empty
     assert not dfr.loc[:, ('PGA', slice(None), slice(None))].empty
-    assert not dfr.loc[:, (Clabel.input, ColumnType.intensity.value,
-                           'PGA')].empty
-    assert not dfr.loc[:, (Clabel.input, ColumnType.intensity.value,
-                           'SA(0.034)')].empty
-    assert not dfr.loc[:, (Clabel.input, ColumnType.intensity.value,
-                           'PGA')].empty
+    assert not dfr.loc[:, (Clabel.input, Column.Type.INTENSITY.value, 'PGA')].empty
+    assert not dfr.loc[:, (Clabel.input, Column.Type.INTENSITY.value, 'SA(0.034)')].empty
+    assert not dfr.loc[:, (Clabel.input, Column.Type.INTENSITY.value, 'PGA')].empty

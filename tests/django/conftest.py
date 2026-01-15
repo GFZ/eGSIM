@@ -5,10 +5,6 @@ Created on 3 May 2018
 
 @author: riccardo
 """
-import shutil
-
-import os
-
 import pytest
 
 from django.core.management import call_command

@@ -90,7 +90,7 @@ def dataframe2dict(
     dframe: pd.DataFrame, as_json=True,
     drop_empty_levels=True,
     orient: str = 'list',  # or 'dict'
-) -> dict[Union[str, tuple], list]:
+) -> dict[Union[str, tuple], Union[list, dict]]:
     """Convert the given dataframe into a Python dict, in the format:
     ```
     { column:Union[str, tuple]: values:list[Any], ... }

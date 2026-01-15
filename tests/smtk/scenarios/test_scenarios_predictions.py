@@ -14,7 +14,7 @@ from openquake.hazardlib.gsim.bindi_2017 import BindiEtAl2017Rjb
 from scipy.interpolate import interp1d
 
 from egsim.smtk.registry import Clabel
-from egsim.smtk.flatfile import ColumnType, Columns
+from egsim.smtk.flatfile import Column
 from egsim.smtk import scenarios
 
 BASE_DATA_PATH = os.path.join(os.path.dirname(__file__), "data")
@@ -139,7 +139,7 @@ def test_distance_imt_trellis():
                     # then decrease. Remove first 20 values
                     values = dfr[c][20:]
                 assert (np.diff(values) <= 0).all()
-            dist_col = (Clabel.input, ColumnType.distance.value, 'rrup')
+            dist_col = (Clabel.input, Column.Type.DISTANCE.value, 'rrup')
             # create interpolation function from new data
             interp = interp1d(dfr[dist_col].values, dfr[c].values,
                               fill_value="extrapolate", kind="cubic")
@@ -208,7 +208,7 @@ def test_magnitude_imt_trellis():
                     # (hacky test heuristically calculated):
                     assert (np.diff(dfr[c]) >= 0).sum() > 0.92 * len(dfr[c])
             # create interpolation function from new data
-            mag_col = (Clabel.input, ColumnType.rupture.value, 'mag')
+            mag_col = (Clabel.input, Column.Type.RUPTURE.value, 'mag')
             interp = interp1d(dfr[mag_col].values, dfr[c].values,
                               fill_value="extrapolate", kind="cubic")
             # interpolate the old values
@@ -307,7 +307,7 @@ def open_ref_hdf(file_name) -> pd.DataFrame:
         else:
             try:
                 c_mapping[c] = (
-                    Clabel.input, str(Columns.get_type(c[0]).value), c[0]
+                    Clabel.input, str(Column.get_type(c[0]).value), c[0]
                 )
             except Exception as exc:
                 raise ValueError(f'`ref` dataframe: unmapped column {c}. {exc}')

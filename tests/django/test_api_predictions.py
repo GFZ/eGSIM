@@ -25,7 +25,7 @@ from egsim.api.forms.scenarios import PredictionsForm
 from unittest.mock import patch  # ok in py3.8  # noqa
 
 from egsim.smtk import registered_imts
-from egsim.smtk.flatfile import ColumnType
+from egsim.smtk.flatfile import Column
 from egsim.smtk.registry import imt_name, Clabel
 
 
@@ -64,8 +64,8 @@ class Test:
         # input_ = form.cleaned_data
         assert sorted(result.keys()) == ['PGA', 'PGV', 'SA(0.2)', Clabel.input]
         # assert list(result.keys())[1] == 'rrup'
-        mags = result[Clabel.input][ColumnType.rupture.value]['mag']
-        dists = result[Clabel.input][ColumnType.distance.value]['rrup']
+        mags = result[Clabel.input][Column.Type.RUPTURE.value]['mag']
+        dists = result[Clabel.input][Column.Type.DISTANCE.value]['rrup']
         assert len(mags) == len(dists) == 12
         result_json = result
 
@@ -87,17 +87,21 @@ class Test:
         assert sorted(result_csv.columns) == sorted(result_hdf.columns)
 
         for col in result_csv.columns:
-            assert (result_csv[col] == result_hdf[col]).all() or \
-                np.allclose(result_csv[col], result_hdf[col],
-                            rtol=1.e-12, atol=0, equal_nan=True)
+            all_equal = (result_csv[col] == result_hdf[col]).all()  # noqa
+            assert all_equal or \
+                np.allclose(
+                    result_csv[col], result_hdf[col], rtol=1.e-12, atol=0, equal_nan=True
+                )
             if col[-1]:  # not ('mag', '', '') or ('rrup, '', ''),
                 # but computed trellis data (e.g. ('PGA', 'median', 'model_name')):
                 result_json_col = result_json[col[0]][col[1]][col[2]]
             else:
                 result_json_col = result_json[col[0]]
-            assert (result_csv[col] == result_json_col).all() or \
-                np.allclose(result_csv[col], result_json_col,
-                            rtol=1.e-12, atol=0, equal_nan=True)
+            all_equal = (result_csv[col] == result_json_col).all()  # noqa
+            assert all_equal or \
+                np.allclose(
+                    result_csv[col], result_json_col, rtol=1.e-12, atol=0, equal_nan=True
+                )
 
     def test_trellis_single_multi_header(
             self,

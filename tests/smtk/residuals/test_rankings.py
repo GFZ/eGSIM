@@ -6,7 +6,7 @@ import os
 import pandas as pd
 
 from egsim.smtk import residuals, get_measures_of_fit
-from egsim.smtk.flatfile import read_flatfile, ColumnType
+from egsim.smtk.flatfile import read_flatfile
 from scipy.constants import g
 
 
