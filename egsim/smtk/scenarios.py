@@ -52,7 +52,7 @@ class SiteProperties:
     region: int = 0
 
 
-def get_scenarios_predictions(
+def get_ground_motion_from_scenarios(
         gsims: Iterable[Union[str, GMPE]],
         imts: Iterable[Union[str, IMT]],
         magnitudes: Union[float, Collection[float]],

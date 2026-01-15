@@ -10,7 +10,7 @@ from django.core.exceptions import ValidationError
 from django.forms.fields import BooleanField, FloatField, ChoiceField, Field
 
 from egsim.api.forms import APIForm, GsimImtForm
-from egsim.smtk import get_scenarios_predictions
+from egsim.smtk import get_ground_motion_from_scenarios
 from egsim.smtk.scenarios import RuptureProperties, SiteProperties, Clabel
 
 
@@ -18,9 +18,11 @@ _mag_scalerel = get_available_magnitude_scalerel()
 
 
 class ArrayField(Field):
-    """Implements an ArrayField. Loosely copied from
+    """
+    Implements an ArrayField. Loosely copied from
     django.contrib.postgres.forms.array.SplitArrayField (which unfortunately
-    requires psycopg2)"""
+    requires psycopg2)
+    """
 
     def __init__(self, *base_fields: Field, **kwargs):
         """
@@ -63,8 +65,10 @@ class ArrayField(Field):
 
 
 class PredictionsForm(GsimImtForm, APIForm):
-    """Form for the computation of Ground motion model predictions from
-    different scenarios"""
+    """
+    Form for the computation of Ground motion model predictions from
+    different scenarios
+    """
 
     # Custom API param names (see doc of `EgsimBaseForm._field2params` for details):
     _field2params = {
@@ -176,7 +180,8 @@ class PredictionsForm(GsimImtForm, APIForm):
     # is validated individually in order to perform additional validation or casting:
 
     def clean_msr(self):
-        """Clean the "msr" field by converting the given value to an
+        """
+        Clean the "msr" field by converting the given value to an
         object of type :class:`openquake.hazardlib.scalerel.base.BaseMSR`.
         """
         try:
@@ -185,7 +190,8 @@ class PredictionsForm(GsimImtForm, APIForm):
             raise ValidationError(self.ErrMsg.invalid)
 
     def clean_initial_point(self):
-        """Clean the "location" field by converting the given value to an
+        """
+        Clean the "location" field by converting the given value to an
         object of type :class:`openquake.hazardlib.geo.point.Point`.
         """
         try:
@@ -194,7 +200,8 @@ class PredictionsForm(GsimImtForm, APIForm):
             raise ValidationError(self.ErrMsg.invalid)
 
     def clean_region(self):
-        """Clean the "region" field by converting the value (which is set as str
+        """
+        Clean the "region" field by converting the value (which is set as str
         by Django) to int.
         """
         try:
@@ -203,7 +210,8 @@ class PredictionsForm(GsimImtForm, APIForm):
             raise ValidationError(self.ErrMsg.invalid)
 
     def output(self) -> pd.DataFrame:
-        """Compute and return the output from the input data (`self.cleaned_data`).
+        """
+        Compute and return the output from the input data (`self.cleaned_data`).
         This method must be called after checking that `self.is_valid()` is True
 
         :return: any Python object (e.g., a JSON-serializable dict)
@@ -216,13 +224,15 @@ class PredictionsForm(GsimImtForm, APIForm):
                                  self.site_fieldnames
                                  if p in cleaned_data})
         header_sep = None if cleaned_data.get('multi_header') else Clabel.sep
-        return get_scenarios_predictions(cleaned_data['gsim'],
-                                         cleaned_data['imt'],
-                                         cleaned_data['magnitude'],
-                                         cleaned_data['distance'],
-                                         rupture_properties=rup,
-                                         site_properties=site,
-                                         header_sep=header_sep)
+        return get_ground_motion_from_scenarios(
+            cleaned_data['gsim'],
+            cleaned_data['imt'],
+            cleaned_data['magnitude'],
+            cleaned_data['distance'],
+            rupture_properties=rup,
+            site_properties=site,
+            header_sep=header_sep
+        )
 
 
 PredictionsForm.rupture_fieldnames = tuple(sorted(
@@ -232,6 +242,3 @@ PredictionsForm.rupture_fieldnames = tuple(sorted(
 PredictionsForm.site_fieldnames = tuple(sorted(
     set(SiteProperties.__annotations__) & set(PredictionsForm.base_fields)
 ))
-
-
-# PredictionsForm.magnitude.help_text += '. See also {}  (all parameters are applied to each created Rupture)'

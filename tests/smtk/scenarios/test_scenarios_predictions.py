@@ -66,13 +66,12 @@ def get_scenarios_predictions(gsims, imts, magnitudes, distances, rup_props, sit
     assuring that the two dataframes are equal. Return the multi-header dataframe
     because tests here rely on that
     """
-    df_single_header = scenarios.get_scenarios_predictions(gsims, imts, magnitudes,
-                                                           distances, rup_props,
-                                                           site_props)
-    df_multi_header = scenarios.get_scenarios_predictions(gsims, imts, magnitudes,
-                                                           distances, rup_props,
-                                                           site_props,
-                                                           header_sep=None)
+    df_single_header = scenarios.get_ground_motion_from_scenarios(
+        gsims, imts, magnitudes, distances, rup_props, site_props
+    )
+    df_multi_header = scenarios.get_ground_motion_from_scenarios(
+        gsims, imts, magnitudes, distances, rup_props, site_props, header_sep=None
+    )
     df_multi_header2 = df_single_header.rename(
         columns={c: tuple(c.split(Clabel.sep)) for c in df_single_header.columns})
     df_multi_header2.columns = pd.MultiIndex.from_tuples(df_multi_header2.columns)
