@@ -17,7 +17,7 @@ from openquake.hazardlib.source.rupture import BaseRupture
 from openquake.hazardlib.source.point import PointSource
 
 from .registry import Clabel
-from .flatfile import Column
+from .flatfile import columns
 from .converters import vs30_to_z1pt0_cy14, vs30_to_z2pt5_cb14
 from .validation import (validate_inputs, harmonize_input_gsims, init_context_maker,
                          harmonize_input_imts, validate_imt_sa_limits,
@@ -102,7 +102,7 @@ def get_scenarios_predictions(
 
     # Get the ground motion values
     data = []
-    columns = []
+    data_cols = []
     for gsim_name, gsim in gsims.items():
         imts_ok = validate_imt_sa_limits(gsim, imts)
         if not imts_ok:
@@ -111,12 +111,12 @@ def get_scenarios_predictions(
         median, sigma, tau, phi = get_ground_motion_values(gsim, imt_vals, ctxts,
                                                            model_name=gsim_name)
         data.append(median)
-        columns.extend((i, Clabel.median, gsim_name) for i in imt_names)
+        data_cols.extend((i, Clabel.median, gsim_name) for i in imt_names)
         data.append(sigma)
-        columns.extend((i, Clabel.std, gsim_name) for i in imt_names)
+        data_cols.extend((i, Clabel.std, gsim_name) for i in imt_names)
 
     # get interesting fields (only those registered in flatfile):
-    meta_fields = [c for c in ctxts.dtype.names if Column.has(c)]
+    meta_fields = [c for c in ctxts.dtype.names if columns.is_valid(c)]
 
     # get the matrix of data (stack the scalar fields into a 2D NumPy array):
     meta_data = np.column_stack([ctxts[name] for name in meta_fields])
@@ -125,12 +125,12 @@ def get_scenarios_predictions(
     data.append(meta_data)
     # build our dataframe columns (append the meta_data columns from meta_columns):
     meta_columns = [
-        (Clabel.input, str(Column.get_type(m).value), m) for m in meta_fields
+        (Clabel.input, str(columns.get_type(m).value), m) for m in meta_fields
     ]
-    columns.extend(meta_columns)
+    data_cols.extend(meta_columns)
 
     # compute final DataFrame:
-    output = pd.DataFrame(columns=columns, data=np.hstack(data))
+    output = pd.DataFrame(columns=data_cols, data=np.hstack(data))
 
     # sort columns (maybe we could use reindex but let's be more explicit):
     computed_cols = set(output.columns)

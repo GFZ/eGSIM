@@ -10,7 +10,7 @@ from django.forms.fields import CharField, FileField
 
 from egsim.smtk import (ground_motion_properties_required_by,
                         intensity_measures_defined_for, get_sa_limits)
-from egsim.smtk.flatfile import (read_flatfile, get_dtype_of, Column,
+from egsim.smtk.flatfile import (read_flatfile, columns,
                                  query as flatfile_query, EVENT_ID_COLUMN_NAME,
                                  FlatfileError, FlatfileQueryError,
                                  IncompatibleColumnError)
@@ -156,12 +156,12 @@ class FlatfileValidationForm(APIForm, FlatfileForm):
         # return human-readable column metadata from its values (dataframe[col]).
         cleaned_data = self.cleaned_data
         dataframe = cleaned_data['flatfile']
-        columns = [
+        cols = [
             get_hr_flatfile_column_meta(col, dataframe[col])
             for col in sorted(dataframe.columns)
         ]
 
-        return {'columns': columns}
+        return {'columns': cols}
 
 
 class FlatfileMetadataInfoForm(GsimForm, APIForm):
@@ -171,7 +171,7 @@ class FlatfileMetadataInfoForm(GsimForm, APIForm):
 
     def clean(self):
         cleaned_data = super().clean()
-        unique_imts = Column.get(Column.Type.INTENSITY)
+        unique_imts = columns.get_names(columns.Type.INTENSITY)
 
         for m_name, model in cleaned_data['gsim'].items():
             imts = intensity_measures_defined_for(model)
@@ -213,20 +213,20 @@ class FlatfileMetadataInfoForm(GsimForm, APIForm):
 
         required_columns = (ground_motion_properties_required_by(*gsims) |
                             {EVENT_ID_COLUMN_NAME})  # <- event id always required
-        ff_columns = {Column.get_aliases(c)[0] for c in required_columns}
+        ff_columns = {columns.get_aliases(c)[0] for c in required_columns}
 
         imts = cleaned_data['imt']
 
-        columns = []
+        cols = []
         sa_period_limits = cleaned_data.get('sa_period_limits', None)
         for col in sorted(ff_columns | set(imts)):
-            columns.append(get_hr_flatfile_column_meta(col))
+            cols.append(get_hr_flatfile_column_meta(col))
             if col == 'SA' and sa_period_limits is not None:
-                columns[-1]['help'] = sa_hr_help(
-                    gsims, columns[-1]['help'], sa_period_limits
+                cols[-1]['help'] = sa_hr_help(
+                    gsims, cols[-1]['help'], sa_period_limits
                 )
 
-        return {'columns': columns}
+        return {'columns': cols}
 
 
 def get_hr_flatfile_column_meta(name: str, values: Optional[pd.Series] = None) -> dict:
@@ -240,7 +240,7 @@ def get_hr_flatfile_column_meta(name: str, values: Optional[pd.Series] = None) -
     }
 
     :param name: the flatfile column name
-    :param values: the column data, ignored if `name` is a registered flatfile column.
+    :param values: the column data, ignored if `name` is a registered flatfile columns.
         Otherwise, if provided, it will be used to infer the column metadata
     """
     c_type = ""
@@ -248,16 +248,16 @@ def get_hr_flatfile_column_meta(name: str, values: Optional[pd.Series] = None) -
     c_dtype = None
     c_categories = []
 
-    if Column.has(name):
-        c_dtype = Column.get_dtype(name)
-        cat_dtype = Column.get_categorical_dtype(name)
+    if columns.is_valid(name):
+        c_dtype = columns.get_dtype(name)
+        cat_dtype = columns.get_categorical_dtype(name)
         if cat_dtype is not None:
             # c_categories is a pandas CategoricalStype. So:
-            c_dtype = get_dtype_of(cat_dtype.categories)
+            c_dtype = columns.get_dtype_of(cat_dtype.categories)
             c_categories = cat_dtype.categories.tolist()
-        c_type = getattr(Column.get_type(name), 'value', "")
-        c_help = Column.get_help(name) or ""
-        c_aliases = Column.get_aliases(name)
+        c_type = getattr(columns.get_type(name), 'value', "")
+        c_help = columns.get_help(name) or ""
+        c_aliases = columns.get_aliases(name)
         if len(c_aliases) > 1:
             c_aliases = [n for n in c_aliases if n != name]
             c_aliases = (f"Alternative valid name{'s' if len(c_aliases) != 1 else ''}: "
@@ -269,10 +269,10 @@ def get_hr_flatfile_column_meta(name: str, values: Optional[pd.Series] = None) -
     elif values is not None:
         try:
             c_categories = values.cat.categories
-            c_dtype = get_dtype_of(c_categories)
+            c_dtype = columns.get_dtype_of(c_categories)
         except AttributeError:
             c_categories = []
-            c_dtype = get_dtype_of(values)
+            c_dtype = columns.get_dtype_of(values)
 
     if c_dtype is not None:
         c_dtype = c_dtype.value

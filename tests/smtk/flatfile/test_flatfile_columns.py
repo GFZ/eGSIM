@@ -15,9 +15,7 @@ import numpy as np
 
 from openquake.hazardlib import imt
 from egsim.smtk import gsim, registered_imts, registered_gsims
-from egsim.smtk.flatfile import (Column,
-                                 _flatfile_columns_path, cast_to_dtype,
-                                 _load_flatfile_columns_registry, get_dtype_of,
+from egsim.smtk.flatfile import (columns,
                                  validate_flatfile_dataframe,
                                  ColumnDataError)
 
@@ -28,7 +26,7 @@ def test_flatfile_extract_from_yaml():
     # read directly from columns registry and asure aliases are well formed.
     # Do not use _load_column_registry because it is assumed to rely on the following
     # test passing (no duplicates, no single alias euqal to column name, and so on):
-    with open(_flatfile_columns_path) as _:
+    with open(columns._flatfile_columns_path) as _:
         dic = yaml.safe_load(_)
         all_names = set(dic)
         all_aliases = set()
@@ -54,7 +52,8 @@ def test_flatfile_extract_from_yaml():
                 raise ValueError(f"alias(es) {dupes} already defined as name")
 
     # Check column properties within itself (no info on other columns required):
-    for c, props in _load_flatfile_columns_registry().items():
+    columns._data = None  # clear cache
+    for c, props in columns._load_flatfile_columns_registry().items():
         check_column_metadata(name=c, props=dict(props))
 
     # Check that the columns we defined as rupture param, sites param,  distance
@@ -65,15 +64,15 @@ def test_flatfile_extract_from_yaml():
     # dicts (column name as dict key, column aliases as dict values):
     rup, site, dist, imtz = {}, {}, {}, set()
     for n in dic:
-        c_type = Column.get_type(n)
-        aliases = Column.get_aliases(n)
-        if c_type == Column.Type.RUPTURE:
+        c_type = columns.get_type(n)
+        aliases = columns.get_aliases(n)
+        if c_type == columns.Type.RUPTURE:
             rup[n] = set(aliases)
-        elif c_type == Column.Type.SITE:
+        elif c_type == columns.Type.SITE:
             site[n] = set(aliases)
-        elif c_type == Column.Type.DISTANCE:
+        elif c_type == columns.Type.DISTANCE:
             dist[n] = set(aliases)
-        elif c_type == Column.Type.INTENSITY:
+        elif c_type == columns.Type.INTENSITY:
             imtz.add(n)
 
     # now check names with openquake names:
@@ -91,7 +90,7 @@ def check_column_metadata(*, name: str, props: dict):
     alias_is_missing = set(alias) == {name}
 
     type = props.pop('type', None)
-    if type == Column.Type.INTENSITY.name and not alias_is_missing:
+    if type == columns.Type.INTENSITY.name and not alias_is_missing:
         raise ValueError(f"{prefix} Intensity measure cannot have alias(es)")
 
     if 'help' in props:
@@ -123,18 +122,18 @@ def check_column_metadata(*, name: str, props: dict):
 
     # handle categorical data:
     if isinstance(dtype, pd.CategoricalDtype):  # categorical data type
-        if get_dtype_of(dtype.categories) is None:  # noqa
+        if columns.get_dtype_of(dtype.categories) is None:  # noqa
             raise ValueError(f"{prefix} invalid data type(s) in categorical data")
         if bounds_are_given:
             raise ValueError(f"{prefix} bounds cannot be provided with "
                              f"categorical data type")
         if default_is_given:
-            assert default is cast_to_dtype(default, dtype)  # noqa
+            assert default is columns.cast_to_dtype(default, dtype)  # noqa
         return
 
-    dtype = Column.Dtype(dtype)
+    dtype = columns.Dtype(dtype)
 
-    if dtype in (Column.Dtype.INT, Column.Dtype.BOOL) and not default_is_given:
+    if dtype in (columns.Dtype.INT, columns.Dtype.BOOL) and not default_is_given:
         raise ValueError(f'{prefix} int or bool with no default')
 
     # check bounds:
@@ -148,14 +147,14 @@ def check_column_metadata(*, name: str, props: dict):
         min_val = bounds.get(">", bounds.get(">=", None))
         for val in [max_val, min_val]:
             if val is not None:
-                assert val == cast_to_dtype(val, dtype)
+                assert val == columns.cast_to_dtype(val, dtype)
         if max_val is not None and min_val is not None and max_val <= min_val:
             raise ValueError(f'{prefix} min. bound must be lower than '
                              f'max. bound')
 
     # check default value:
     if default_is_given:
-        assert default == cast_to_dtype(default, dtype)
+        assert default == columns.cast_to_dtype(default, dtype)
 
     if props:
         raise ValueError(f'{prefix} Undefined property names, '
@@ -208,73 +207,73 @@ def check_with_openquake(rupture_params: dict[str, set[str]],
 
 def test_get_dtype():
     vals = [
-        [Column.Dtype.DATETIME, datetime.utcnow()],
-        [Column.Dtype.DATETIME, np.datetime64(datetime.utcnow())],
-        [Column.Dtype.INT, 2],
-        [Column.Dtype.INT, np.int_(2)],
-        [Column.Dtype.FLOAT, 2.2],
-        [Column.Dtype.FLOAT, np.nan],
-        [Column.Dtype.FLOAT, np.float_(2.2)],
-        [Column.Dtype.BOOL, True],
-        [Column.Dtype.BOOL, np.bool_(False)],
-        [Column.Dtype.STR, 'a'],
-        [Column.Dtype.STR, np.str_('a')],
+        [columns.Dtype.DATETIME, datetime.utcnow()],
+        [columns.Dtype.DATETIME, np.datetime64(datetime.utcnow())],
+        [columns.Dtype.INT, 2],
+        [columns.Dtype.INT, np.int_(2)],
+        [columns.Dtype.FLOAT, 2.2],
+        [columns.Dtype.FLOAT, np.nan],
+        [columns.Dtype.FLOAT, np.float_(2.2)],
+        [columns.Dtype.BOOL, True],
+        [columns.Dtype.BOOL, np.bool_(False)],
+        [columns.Dtype.STR, 'a'],
+        [columns.Dtype.STR, np.str_('a')],
     ]
     for ctype, val in vals:
         # scalar (Pythion numpy whatever):
-        assert get_dtype_of(val) == ctype
+        assert columns.get_dtype_of(val) == ctype
         # pd.Series:
-        assert get_dtype_of(pd.Series(val)) == ctype
-        assert get_dtype_of(pd.Series([val])) == ctype
+        assert columns.get_dtype_of(pd.Series(val)) == ctype
+        assert columns.get_dtype_of(pd.Series([val])) == ctype
         # pd.CategoricalDtype
         if not pd.isna(val):
             # (NaN / Null cannot be set as categories, skip in case)
-            assert get_dtype_of(pd.CategoricalDtype([val]).categories) == ctype
+            assert columns.get_dtype_of(pd.CategoricalDtype([val]).categories) == ctype
         # pd.Index:
-        assert get_dtype_of(pd.Index([val])) == ctype
+        assert columns.get_dtype_of(pd.Index([val])) == ctype
         # np.dtypes:
-        assert get_dtype_of(pd.Series(val).dtype) == ctype
-        assert get_dtype_of(pd.Series([val]).dtype) == ctype
+        assert columns.get_dtype_of(pd.Series(val).dtype) == ctype
+        assert columns.get_dtype_of(pd.Series([val]).dtype) == ctype
         # np.array:
-        assert get_dtype_of(pd.Series(val).values[0]) == ctype
-        assert get_dtype_of(pd.Series([val]).values) == ctype
+        assert columns.get_dtype_of(pd.Series(val).values[0]) == ctype
+        assert columns.get_dtype_of(pd.Series([val]).values) == ctype
         # pd.numeric and pd.to_datetime
-        if ctype in (Column.Dtype.FLOAT, Column.Dtype.BOOL, Column.Dtype.INT):
-            assert get_dtype_of(pd.to_numeric(val)) == ctype
-            assert get_dtype_of(pd.to_numeric([val])) == ctype
-        elif ctype == Column.Dtype.DATETIME:
+        if ctype in (columns.Dtype.FLOAT, columns.Dtype.BOOL, columns.Dtype.INT):
+            assert columns.get_dtype_of(pd.to_numeric(val)) == ctype
+            assert columns.get_dtype_of(pd.to_numeric([val])) == ctype
+        elif ctype == columns.Dtype.DATETIME:
             # to_datetime returns a Timestamp, so it is not datetime dtype:
-            assert get_dtype_of(pd.to_datetime(val)) == ctype
-            assert get_dtype_of(pd.to_datetime([val])) == ctype
+            assert columns.get_dtype_of(pd.to_datetime(val)) == ctype
+            assert columns.get_dtype_of(pd.to_datetime([val])) == ctype
         # NOTE: NUMPY IS ACTUALLY NOT SUPPORTED, THE CODE BELOW IS LEGACY CODE:
         # IF IT FAILS AND THE FIX IS A PAIN, YOU CAN REMOVE THE TEST
-        if ctype != Column.Dtype.DATETIME:
+        if ctype != columns.Dtype.DATETIME:
             # skip np.array(datetime) and use to_datetime (see above):
-            assert get_dtype_of(np.array(val)) == ctype
-            assert get_dtype_of(np.array([val])) == ctype
+            assert columns.get_dtype_of(np.array(val)) == ctype
+            assert columns.get_dtype_of(np.array([val])) == ctype
 
     # cases of mixed types that return None as dtype (by default they return string
     # but this is a behaviour of pandas that we do not want to mimic):
-    assert get_dtype_of(pd.Series([True, 2])) is None
-    assert get_dtype_of(pd.CategoricalDtype([True, 2]).categories) is None
+    assert columns.get_dtype_of(pd.Series([True, 2])) is None
+    assert columns.get_dtype_of(pd.CategoricalDtype([True, 2]).categories) is None
 
-    assert get_dtype_of(pd.Series(['True', 2])) is None
-    assert get_dtype_of(pd.CategoricalDtype(['True', 2]).categories) is None
+    assert columns.get_dtype_of(pd.Series(['True', 2])) is None
+    assert columns.get_dtype_of(pd.CategoricalDtype(['True', 2]).categories) is None
 
-    assert get_dtype_of(pd.Series(['x', 2, datetime.utcnow()])) is None
-    assert get_dtype_of(pd.CategoricalDtype(['x', 2, datetime.utcnow()]).categories) \
+    assert columns.get_dtype_of(pd.Series(['x', 2, datetime.utcnow()])) is None
+    assert columns.get_dtype_of(pd.CategoricalDtype(['x', 2, datetime.utcnow()]).categories) \
            is None
 
     # test series with N/A (more complete tests in the next function):
     vals = [
-        [[datetime.utcnow(), pd.NaT], Column.Dtype.DATETIME],
-        [[2, None], Column.Dtype.FLOAT],
-        [[1.2, None], Column.Dtype.FLOAT],
+        [[datetime.utcnow(), pd.NaT], columns.Dtype.DATETIME],
+        [[2, None], columns.Dtype.FLOAT],
+        [[1.2, None], columns.Dtype.FLOAT],
         [[True, None], None],
-        [['a', None], Column.Dtype.STR]
+        [['a', None], columns.Dtype.STR]
     ]
     for val, ctype in vals:
-        assert get_dtype_of(pd.Series(val)) == ctype
+        assert columns.get_dtype_of(pd.Series(val)) == ctype
 
 
 def test_flatfile_invalid_categories():
@@ -289,43 +288,43 @@ def test_flatfile_invalid_categories():
 def test_get_dtype_mixed_categories():
     """test that get_dtypoe_of mixed categorical returns None and not
     ColumnDtype.category"""
-    assert get_dtype_of(pd.Series([2, True]).astype('category')) is None
-    assert (get_dtype_of(pd.Series([False, True]).astype('category'))
-            is Column.Dtype.CATEGORY)
-    assert (get_dtype_of(pd.Series([False, None]).astype('category'))
-            is Column.Dtype.CATEGORY)
-    assert get_dtype_of(pd.Series([datetime.utcnow(), pd.NaT]).astype(
-        'category')) is Column.Dtype.CATEGORY
-    assert get_dtype_of(pd.Series([2, 3]).astype(
-        'category')) is Column.Dtype.CATEGORY
-    assert get_dtype_of(pd.Series([2, None]).astype(
-        'category')) is Column.Dtype.CATEGORY
-    assert get_dtype_of(pd.Series([2, np.nan]).astype(
-        'category')) is Column.Dtype.CATEGORY
-    assert get_dtype_of(pd.Series([2, 2.2]).astype(
-        'category')) is Column.Dtype.CATEGORY
-    assert get_dtype_of(pd.Series(['2', 'None']).astype(
-        'category')) is Column.Dtype.CATEGORY
-    assert get_dtype_of(pd.Series(['2', None]).astype(
-        'category')) is Column.Dtype.CATEGORY
+    assert columns.get_dtype_of(pd.Series([2, True]).astype('category')) is None
+    assert (columns.get_dtype_of(pd.Series([False, True]).astype('category'))
+            is columns.Dtype.CATEGORY)
+    assert (columns.get_dtype_of(pd.Series([False, None]).astype('category'))
+            is columns.Dtype.CATEGORY)
+    assert columns.get_dtype_of(pd.Series([datetime.utcnow(), pd.NaT]).astype(
+        'category')) is columns.Dtype.CATEGORY
+    assert columns.get_dtype_of(pd.Series([2, 3]).astype(
+        'category')) is columns.Dtype.CATEGORY
+    assert columns.get_dtype_of(pd.Series([2, None]).astype(
+        'category')) is columns.Dtype.CATEGORY
+    assert columns.get_dtype_of(pd.Series([2, np.nan]).astype(
+        'category')) is columns.Dtype.CATEGORY
+    assert columns.get_dtype_of(pd.Series([2, 2.2]).astype(
+        'category')) is columns.Dtype.CATEGORY
+    assert columns.get_dtype_of(pd.Series(['2', 'None']).astype(
+        'category')) is columns.Dtype.CATEGORY
+    assert columns.get_dtype_of(pd.Series(['2', None]).astype(
+        'category')) is columns.Dtype.CATEGORY
 
 
 def test_mixed_arrays_are_mostly_null_dtype():
     """test that arrays with mixed dtypes have None dtype (with some known exceptions)"""
     for val in combinations(['a', 2, 2.2, True, datetime.utcnow()], 2):
         # check that the two values have a dtype set:
-        assert get_dtype_of(val[0]) is not None
-        assert get_dtype_of(val[1]) is not None
+        assert columns.get_dtype_of(val[0]) is not None
+        assert columns.get_dtype_of(val[1]) is not None
 
         val = list(val)
 
         # test pandas Series:
         cdtype = None
         try:
-            cdtype = get_dtype_of(pd.Series(val))
+            cdtype = columns.get_dtype_of(pd.Series(val))
             assert cdtype is None
         except AssertionError:
-            if set(val) == {2, 2.2} and cdtype == Column.Dtype.FLOAT:
+            if set(val) == {2, 2.2} and cdtype == columns.Dtype.FLOAT:
                 pass
 
         # test numpy arrays
@@ -333,44 +332,44 @@ def test_mixed_arrays_are_mostly_null_dtype():
         # IF IT FAILS AND THE FIX IS A PAIN, YOU CAN REMOVE THE TEST
         cdtype = None
         try:
-            cdtype = get_dtype_of(np.array(val))
+            cdtype = columns.get_dtype_of(np.array(val))
             assert cdtype is None
         except AssertionError:
             # numpy behaves differently than pandas:
             # everything with 'a' is converted to str:
             if 'a' in val:
-                assert cdtype == Column.Dtype.STR
+                assert cdtype == columns.Dtype.STR
                 continue
             # if we have 2 and True, then the dtype is converted to int:
             if set(val) == {2, True}:
-                assert cdtype == Column.Dtype.INT
+                assert cdtype == columns.Dtype.INT
                 continue
             # for any combination of 2.2 with 2 or True, dtype is converted to float:
             if all(_ in {2.2, 2, True} for _ in val):
-                assert cdtype == Column.Dtype.FLOAT
+                assert cdtype == columns.Dtype.FLOAT
 
 
 def test_dtypes_with_null():
     """test that arrays with known dtype + 1 null preserve their dtype"""
     for val in ['a', 2, 2.2, True, datetime.utcnow()]:
         # check that the two values have a dtype set:
-        cdtype = get_dtype_of(val)
+        cdtype = columns.get_dtype_of(val)
         assert cdtype is not None
 
         vals = [val, None]
         # test pandas Series:
         try:
-            assert cdtype == get_dtype_of(pd.Series(vals))
+            assert cdtype == columns.get_dtype_of(pd.Series(vals))
         except AssertionError:
-            assert cdtype in (Column.Dtype.INT, Column.Dtype.BOOL)
+            assert cdtype in (columns.Dtype.INT, columns.Dtype.BOOL)
 
         # test numpy array:
         # NOTE: NUMPY IS ACTUALLY NOT SUPPORTED, THE CODE BELOW IS LEGACY CODE:
         # IF IT FAILS AND THE FIX IS A PAIN, YOU CAN REMOVE THE TEST
         try:
-            assert cdtype != get_dtype_of(np.array(vals))
+            assert cdtype != columns.get_dtype_of(np.array(vals))
         except AssertionError:
-            assert cdtype == Column.Dtype.STR
+            assert cdtype == columns.Dtype.STR
 
 
 def test_str_and_o_dtypes_are_the_same():
@@ -385,17 +384,17 @@ def test_str_and_o_dtypes_are_the_same():
 
 def test_cast_to_dtype():
     vals = [
-        [Column.Dtype.DATETIME, datetime.utcnow()],
-        [Column.Dtype.DATETIME, np.datetime64(datetime.utcnow())],
-        [Column.Dtype.INT, 2],
-        [Column.Dtype.INT, np.int_(2)],
-        [Column.Dtype.FLOAT, 2.2],
-        [Column.Dtype.FLOAT, np.nan],
-        [Column.Dtype.FLOAT, np.float_(2.2)],
-        [Column.Dtype.BOOL, True],
-        [Column.Dtype.BOOL, np.bool_(False)],
-        [Column.Dtype.STR, 'a'],
-        [Column.Dtype.STR, np.str_('a')],
+        [columns.Dtype.DATETIME, datetime.utcnow()],
+        [columns.Dtype.DATETIME, np.datetime64(datetime.utcnow())],
+        [columns.Dtype.INT, 2],
+        [columns.Dtype.INT, np.int_(2)],
+        [columns.Dtype.FLOAT, 2.2],
+        [columns.Dtype.FLOAT, np.nan],
+        [columns.Dtype.FLOAT, np.float_(2.2)],
+        [columns.Dtype.BOOL, True],
+        [columns.Dtype.BOOL, np.bool_(False)],
+        [columns.Dtype.STR, 'a'],
+        [columns.Dtype.STR, np.str_('a')],
     ]
 
     def eq(a, b):
@@ -421,50 +420,52 @@ def test_cast_to_dtype():
                     raise
 
             # scalar (Python numpy whatever):
-            assert eq(cast_to_dtype(val, ctype), val)
+            assert eq(columns.cast_to_dtype(val, ctype), val)
 
             # pd.Series:
             v = pd.Series(val)
-            assert eq(cast_to_dtype(v, ctype), v)
+            assert eq(columns.cast_to_dtype(v, ctype), v)
             v = pd.Series(val)
-            assert eq(cast_to_dtype(v, ctype) , v)
+            assert eq(columns.cast_to_dtype(v, ctype) , v)
             # pd.Index:
             v = pd.Index([val])
-            assert eq(cast_to_dtype(v, ctype), v)
+            assert eq(columns.cast_to_dtype(v, ctype), v)
 
             # pd.numeric and pd.to_datetime
-            if ctype in (Column.Dtype.FLOAT, Column.Dtype.BOOL, Column.Dtype.INT):
-                assert eq(cast_to_dtype(pd.to_numeric(val), ctype), val)
-                assert eq(cast_to_dtype(pd.to_numeric([val]), ctype), [val])  # noqa
-            elif ctype == Column.Dtype.DATETIME:
+            if ctype in (columns.Dtype.FLOAT, columns.Dtype.BOOL, columns.Dtype.INT):
+                assert eq(columns.cast_to_dtype(pd.to_numeric(val), ctype), val)
+                assert eq(columns.cast_to_dtype(pd.to_numeric([val]), ctype), [val])  # noqa
+            elif ctype == columns.Dtype.DATETIME:
                 # to_datetime returns a Timestamp so it is not datetime dtype:
-                assert eq(cast_to_dtype(pd.to_datetime(val), ctype), val)
-                assert eq(cast_to_dtype(pd.to_datetime([val]), ctype), [val])  # noqa
+                assert eq(columns.cast_to_dtype(pd.to_datetime(val), ctype), val)
+                assert eq(columns.cast_to_dtype(pd.to_datetime([val]), ctype), [val])  # noqa
 
     # mixed types categories in categorical data raises:
     with pytest.raises(ValueError) as verr:
-        cast_to_dtype('r', pd.CategoricalDtype([1, 'd']))
+       columns.cast_to_dtype('r', pd.CategoricalDtype([1, 'd']))
 
     # mixed types values in series with dtype.category raises:
     with pytest.raises(ValueError) as verr:
-        cast_to_dtype(pd.Series([2, True]), Column.Dtype.CATEGORY)
+       columns.cast_to_dtype(pd.Series([2, True]), columns.Dtype.CATEGORY)
 
     # mixed types values in series with dtype.category and 'coerce' works:
-    v = cast_to_dtype(pd.Series([2, True]), Column.Dtype.CATEGORY,
-                      mixed_dtype_categorical='coerce')
+    v = columns.cast_to_dtype(
+        pd.Series([2, True]), columns.Dtype.CATEGORY,
+        mixed_dtype_categorical='coerce'
+    )
     assert v.tolist() == ['2', 'True']
 
     # mixed types values in series with dtype.str works:
-    v = cast_to_dtype(pd.Series([2, True]), Column.Dtype.STR)
+    v = columns.cast_to_dtype(pd.Series([2, True]), columns.Dtype.STR)
     assert v.tolist() == ['2', 'True']
 
     # mixed types values in series with dtype.float works:
-    v = cast_to_dtype(pd.Series([2, True]), Column.Dtype.FLOAT)
+    v = columns.cast_to_dtype(pd.Series([2, True]), columns.Dtype.FLOAT)
     assert v.tolist() == [2.0, 1.0]
 
     # mixed types values in series with dtype.bool raises as 2 isn't recognized:
     with pytest.raises(ValueError) as verr:
-        cast_to_dtype(pd.Series([2, True]), Column.Dtype.BOOL)
+       columns.cast_to_dtype(pd.Series([2, True]), columns.Dtype.BOOL)
     # this should work:
-    v = cast_to_dtype(pd.Series([0, True]), Column.Dtype.BOOL)
+    v = columns.cast_to_dtype(pd.Series([0, True]), columns.Dtype.BOOL)
     assert v.tolist() == [False, True]

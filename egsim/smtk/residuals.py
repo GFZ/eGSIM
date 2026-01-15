@@ -19,7 +19,7 @@ from openquake.hazardlib import imt, const
 from openquake.hazardlib.contexts import RuptureContext
 from openquake.hazardlib.scalerel import PeerMSR
 
-from .flatfile import (FlatfileError, MissingColumnError, Column,
+from .flatfile import (FlatfileError, MissingColumnError, columns,
                        ColumnDataError, IncompatibleColumnError, EVENT_ID_COLUMN_NAME)
 from .validation import (validate_inputs, harmonize_input_gsims, init_context_maker,
                          harmonize_input_imts, validate_imt_sa_limits,
@@ -84,7 +84,7 @@ def get_residuals(
     # concat:
     col_mapping = {}
     for c in flatfile_r.columns:
-        c_type = Column.get_type(c)
+        c_type = columns.get_type(c)
         col_mapping[c] = (
             Clabel.input,
             c_type.value if c_type else Clabel.uncategorized_input,
@@ -183,7 +183,7 @@ class EventContext(RuptureContext):
         self._flatfile = flatfile
         if self.__class__.rupture_params is None:
             # get rupture params once for all instances the first time only:
-            self.__class__.rupture_params = Column.get(Column.Type.RUPTURE)
+            self.__class__.rupture_params = columns.get_names(columns.Type.RUPTURE)
 
     def __eq__(self, other):
         """Overwrite `BaseContext.__eq__` method"""
@@ -359,7 +359,7 @@ def get_column_name(flatfile: pd.DataFrame, column: str) -> Union[str, None]:
      Returns None if no column is found, raise `IncompatibleColumnError` if more than
      a matching column is found"""
     ff_cols = set(flatfile.columns)
-    cols = set(Column.get_aliases(column)) & ff_cols
+    cols = set(columns.get_aliases(column)) & ff_cols
     if len(cols) > 1:
         raise IncompatibleColumnError(cols)
     elif len(cols) == 0:

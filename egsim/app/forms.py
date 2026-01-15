@@ -15,7 +15,7 @@ from egsim.smtk.registry import Clabel, sa_period
 from .plotly import (colors_cycle, axis_type, axis_range, scatter_trace,
                      bar_trace, line_trace, histogram_trace, AxisType)
 from ..smtk.converters import datetime2float
-from ..smtk.flatfile import Column
+from ..smtk.flatfile import columns
 
 
 class PredictionsVisualizeForm(PredictionsForm):
@@ -43,11 +43,11 @@ class PredictionsVisualizeForm(PredictionsForm):
         dataframe = super().output()
         # dist_col_lbl_selector = (
         #     Clabel.input,
-        #     ColumnType.distance.value,
+        #     Column.Type.DISTANCE.value,
         #     slice(None)
         # )
-        dist_col = (Clabel.input, Column.Type.DISTANCE.value, Clabel.rrup)
-        mag_col = (Clabel.input, Column.Type.RUPTURE.value, Clabel.mag)
+        dist_col = (Clabel.input, columns.Type.DISTANCE.value, Clabel.rrup)
+        mag_col = (Clabel.input, columns.Type.RUPTURE.value, Clabel.mag)
         mag_label = mag_col[-1].title()
         dist_label = dist_col[-1].title()
         imt_label = 'Imt'

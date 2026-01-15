@@ -17,7 +17,7 @@ import pandas as pd
 import yaml
 
 from egsim.api.models import Gsim
-from egsim.smtk.flatfile import get_dtype_of
+from egsim.smtk.flatfile import columns
 
 
 @pytest.mark.django_db
@@ -37,7 +37,7 @@ def test_initdb(capsys):
         for ff in data:
             if os.path.basename(os.path.dirname(ff)) == 'flatfiles':
                 dfr: pd.DataFrame = pd.read_hdf(os.path.join(media_root, ff))  # noqa
-                assert all(get_dtype_of(dfr[c]) is not None for c in dfr.columns)
+                assert all(columns.get_dtype_of(dfr[c]) is not None for c in dfr.columns)
 
 
 @pytest.mark.django_db

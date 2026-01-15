@@ -15,21 +15,20 @@ from egsim.smtk import flatfile
 from egsim.smtk.flatfile import (read_flatfile,
                                  query,
                                  FlatfileError,
-                                 get_dtype_of, optimize_flatfile_dataframe,
+                                 optimize_flatfile_dataframe,
                                  FlatfileQueryError,
-                                 Column,
-                                 _load_flatfile_columns_registry)
+                                 columns)
 from egsim.smtk.validation import ConflictError
 
 
 def test_read_flatifle_yaml():
-
-    dic = _load_flatfile_columns_registry()
-    params = Column.get(Column.Type.RUPTURE)
+    columns._data = None  # clear cache
+    dic = columns._load_flatfile_columns_registry()
+    params = columns.get_names(columns.Type.RUPTURE)
     assert len({'rup_width', 'mag', 'magnitude', 'width'} & params) == 4
-    params = {c for c in dic if Column.get_type(c) == Column.Type.DISTANCE}
+    params = {c for c in dic if columns.get_type(c) == columns.Type.DISTANCE}
     assert len({'rrup', 'rhypo'} & params) == 2
-    params = {c for c in dic if Column.get_type(c) == Column.Type.SITE}
+    params = {c for c in dic if columns.get_type(c) == columns.Type.SITE}
     assert len({'sta_lat', 'station_latitude', 'lat' , 'vs30'} & params) == 4
 
 
@@ -43,7 +42,7 @@ def test_flatfile_turkey():
         dfr2 = read_flatfile(_)  # noqa
     pd.testing.assert_frame_equal(dfr, dfr2)
 
-    assert all(get_dtype_of(dfr[c]) is not None for c in dfr.columns)
+    assert all(columns.get_dtype_of(dfr[c]) is not None for c in dfr.columns)
     fpath = fpath+'.hdf.tmp'
     try:
         dfr.to_hdf(fpath, format='table', key='egsim')
@@ -170,16 +169,16 @@ def test_optimize_flatfile():
         'b': [True, False, True, False],
         's': ['asdasd', 'asdasd', 'asdasd', 'asdasd']
     })
-    assert get_dtype_of(dfr.i) == Column.Dtype.INT
-    assert get_dtype_of(dfr.d) == Column.Dtype.DATETIME
-    assert get_dtype_of(dfr.f) == Column.Dtype.FLOAT
-    assert get_dtype_of(dfr.b) == Column.Dtype.BOOL
-    assert get_dtype_of(dfr.s) == Column.Dtype.STR
+    assert columns.get_dtype_of(dfr.i) == columns.Dtype.INT
+    assert columns.get_dtype_of(dfr.d) == columns.Dtype.DATETIME
+    assert columns.get_dtype_of(dfr.f) == columns.Dtype.FLOAT
+    assert columns.get_dtype_of(dfr.b) == columns.Dtype.BOOL
+    assert columns.get_dtype_of(dfr.s) == columns.Dtype.STR
 
     optimize_flatfile_dataframe(dfr)
 
-    assert get_dtype_of(dfr.i) == Column.Dtype.INT
-    assert get_dtype_of(dfr.d) == Column.Dtype.DATETIME
-    assert get_dtype_of(dfr.f) == Column.Dtype.FLOAT
-    assert get_dtype_of(dfr.b) == Column.Dtype.BOOL
-    assert get_dtype_of(dfr.s) == Column.Dtype.CATEGORY
+    assert columns.get_dtype_of(dfr.i) == columns.Dtype.INT
+    assert columns.get_dtype_of(dfr.d) == columns.Dtype.DATETIME
+    assert columns.get_dtype_of(dfr.f) == columns.Dtype.FLOAT
+    assert columns.get_dtype_of(dfr.b) == columns.Dtype.BOOL
+    assert columns.get_dtype_of(dfr.s) == columns.Dtype.CATEGORY

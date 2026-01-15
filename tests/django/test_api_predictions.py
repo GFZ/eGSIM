@@ -25,7 +25,7 @@ from egsim.api.forms.scenarios import PredictionsForm
 from unittest.mock import patch  # ok in py3.8  # noqa
 
 from egsim.smtk import registered_imts
-from egsim.smtk.flatfile import Column
+from egsim.smtk.flatfile import columns
 from egsim.smtk.registry import imt_name, Clabel
 
 
@@ -64,8 +64,8 @@ class Test:
         # input_ = form.cleaned_data
         assert sorted(result.keys()) == ['PGA', 'PGV', 'SA(0.2)', Clabel.input]
         # assert list(result.keys())[1] == 'rrup'
-        mags = result[Clabel.input][Column.Type.RUPTURE.value]['mag']
-        dists = result[Clabel.input][Column.Type.DISTANCE.value]['rrup']
+        mags = result[Clabel.input][columns.Type.RUPTURE.value]['mag']
+        dists = result[Clabel.input][columns.Type.DISTANCE.value]['rrup']
         assert len(mags) == len(dists) == 12
         result_json = result
 
