@@ -1,3 +1,12 @@
+> # ⚠️ Mirror Repository (Read Carefully)
+> This repository is an automated mirror of:
+> 👉 [https://github.com/rizac/eGSIM](https://github.com/rizac/eGSIM). 
+> Issues, pull requests, and all development activity take place in the main repository linked above. 
+> No changes should be made here.
+
+
+
+
 eGSIM is a web service for selecting and testing  ground shaking models (GSIM) 
 in Europe, developed by the [GFZ](https://www.gfz-potsdam.de/) 
 in the framework of the Thematic Core Services for Seismology of 
